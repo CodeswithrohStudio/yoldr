@@ -1,195 +1,263 @@
 "use client";
+
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+
+// ── Yoldr shield orbital configs ─────────────────────────────
+const SHIELDS = [
+  { asset: "GOLD", color: 0xf59e0b, r: 3.8, speed: 0.38, tilt: 0.22, phase: 0 },
+  { asset: "BTC",  color: 0xf97316, r: 5.0, speed: 0.26, tilt: -0.42, phase: Math.PI * 0.55 },
+  { asset: "ETH",  color: 0x8b5cf6, r: 3.2, speed: 0.48, tilt: 0.58,  phase: Math.PI },
+  { asset: "FLOW", color: 0x10b981, r: 4.6, speed: 0.31, tilt: -0.28, phase: Math.PI * 1.6 },
+];
 
 export default function ThreeCanvas() {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!mountRef.current) return;
-
     const mount = mountRef.current;
-    const W = mount.clientWidth;
-    const H = mount.clientHeight;
+    if (!mount) return;
+    let W = mount.clientWidth;
+    let H = mount.clientHeight;
 
-    // --- Scene setup ---
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, W / H, 0.1, 1000);
-    camera.position.set(0, 0, 28);
-
+    // ── Renderer ──────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(W, H);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.setClearColor(0x000000, 0);
     mount.appendChild(renderer.domElement);
 
-    // --- Particles ---
-    const particleCount = 800;
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
-    const sizes = new Float32Array(particleCount);
+    // ── Scene / Camera ────────────────────────────────────────
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(54, W / H, 0.1, 120);
+    camera.position.set(0, 1.2, 10.5);
+    camera.lookAt(0, 0, 0);
 
-    const goldColor = new THREE.Color("#F59E0B");
-    const purpleColor = new THREE.Color("#8B5CF6");
-    const blueColor = new THREE.Color("#3B82F6");
-
-    for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 80;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 80;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 60 - 10;
-
-      const r = Math.random();
-      const c = r < 0.5 ? goldColor : r < 0.8 ? purpleColor : blueColor;
-      colors[i * 3] = c.r;
-      colors[i * 3 + 1] = c.g;
-      colors[i * 3 + 2] = c.b;
-
-      sizes[i] = Math.random() * 2 + 0.5;
+    // ── DOT GRID (world-map style flat background) ────────────
+    const COLS = 58, ROWS = 32;
+    const gridPos = new Float32Array(COLS * ROWS * 3);
+    const gridCol = new Float32Array(COLS * ROWS * 3);
+    let gi = 0;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const x = (c / (COLS - 1) - 0.5) * 30;
+        const y = (r / (ROWS - 1) - 0.5) * 16;
+        gridPos[gi * 3]     = x;
+        gridPos[gi * 3 + 1] = y;
+        gridPos[gi * 3 + 2] = -8;
+        // Radial brightness — brighter toward center
+        const d = Math.sqrt(x * x + y * y) / 16;
+        const b = Math.max(0.04, 0.18 - d * 0.14);
+        gridCol[gi * 3]     = b * 0.85;
+        gridCol[gi * 3 + 1] = b * 0.95;
+        gridCol[gi * 3 + 2] = b * 1.5;
+        gi++;
+      }
     }
+    const gridGeo = new THREE.BufferGeometry();
+    gridGeo.setAttribute("position", new THREE.BufferAttribute(gridPos, 3));
+    gridGeo.setAttribute("color",    new THREE.BufferAttribute(gridCol, 3));
+    scene.add(new THREE.Points(gridGeo, new THREE.PointsMaterial({
+      size: 0.055, vertexColors: true, transparent: true, opacity: 0.75,
+    })));
 
-    const particleGeo = new THREE.BufferGeometry();
-    particleGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    particleGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    particleGeo.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
-
-    const particleMat = new THREE.PointsMaterial({
-      size: 0.25,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.7,
-      sizeAttenuation: true,
+    // ── CENTRAL VAULT ─────────────────────────────────────────
+    const vaultGeo = new THREE.IcosahedronGeometry(0.88, 4);
+    const vaultMat = new THREE.MeshStandardMaterial({
+      color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 0.55,
+      metalness: 0.85, roughness: 0.12,
     });
+    const vault = new THREE.Mesh(vaultGeo, vaultMat);
+    scene.add(vault);
 
-    const particles = new THREE.Points(particleGeo, particleMat);
-    scene.add(particles);
+    // Animated halo rings around vault
+    const makeHalo = (r: number, opacity: number, rotX = 0, rotZ = 0) => {
+      const m = new THREE.Mesh(
+        new THREE.TorusGeometry(r, 0.028, 8, 80),
+        new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity })
+      );
+      m.rotation.x = rotX;
+      m.rotation.z = rotZ;
+      scene.add(m);
+      return m;
+    };
+    const halo1 = makeHalo(1.35, 0.32);
+    const halo2 = makeHalo(1.75, 0.14, Math.PI / 3.5, Math.PI / 6);
+    const halo3 = makeHalo(2.1,  0.06, Math.PI / 2.2, Math.PI / 4);
 
-    // --- Floating orbs ---
-    const orbData: { mesh: THREE.Mesh; speed: number; phase: number; radius: number; yOffset: number }[] = [];
+    // ── PER-SHIELD STRUCTURES ─────────────────────────────────
+    type Particle = { mesh: THREE.Mesh; t: number; speed: number };
+    type Slot = {
+      orb:       THREE.Mesh;
+      curve:     THREE.CatmullRomCurve3;
+      lineGeo:   THREE.BufferGeometry;
+      lineMat:   THREE.LineDashedMaterial;
+      line:      THREE.Line;
+      particles: Particle[];
+    };
 
-    const orbConfigs = [
-      { color: "#F59E0B", emissive: "#F59E0B", x: -12, y: 4, z: -5, scale: 1.8 },
-      { color: "#8B5CF6", emissive: "#8B5CF6", x: 10, y: -3, z: -8, scale: 2.2 },
-      { color: "#3B82F6", emissive: "#3B82F6", x: 6, y: 7, z: -12, scale: 1.4 },
-      { color: "#10B981", emissive: "#10B981", x: -8, y: -6, z: -6, scale: 1.0 },
-      { color: "#F59E0B", emissive: "#F59E0B", x: 14, y: 2, z: -15, scale: 3.0 },
-    ];
+    const slots: Slot[] = SHIELDS.map((cfg) => {
+      // Orbital guide ring
+      const orbitRing = new THREE.Mesh(
+        new THREE.TorusGeometry(cfg.r, 0.01, 4, 90),
+        new THREE.MeshBasicMaterial({ color: cfg.color, transparent: true, opacity: 0.07 })
+      );
+      orbitRing.rotation.x = cfg.tilt;
+      scene.add(orbitRing);
 
-    orbConfigs.forEach((cfg, i) => {
-      const geo = new THREE.SphereGeometry(cfg.scale, 32, 32);
-      const mat = new THREE.MeshStandardMaterial({
-        color: cfg.color,
-        emissive: cfg.emissive,
-        emissiveIntensity: 0.4,
-        transparent: true,
-        opacity: 0.15,
-        roughness: 0.1,
-        metalness: 0.8,
+      // Shield orb
+      const orb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.28, 22, 22),
+        new THREE.MeshStandardMaterial({
+          color: cfg.color, emissive: cfg.color, emissiveIntensity: 0.75,
+          metalness: 0.5, roughness: 0.18,
+        })
+      );
+      // Mini ring on orb face
+      orb.add(new THREE.Mesh(
+        new THREE.TorusGeometry(0.45, 0.022, 6, 36),
+        new THREE.MeshBasicMaterial({ color: cfg.color, transparent: true, opacity: 0.5 })
+      ));
+      const lt = new THREE.PointLight(cfg.color, 1.4, 6);
+      orb.add(lt);
+      scene.add(orb);
+
+      // Animated dashed yield line: vault → shield orb
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 0.5, 0),
+        new THREE.Vector3(0, 0, 0),
+      ]);
+      const pts = curve.getPoints(64);
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+      const lineMat = new THREE.LineDashedMaterial({
+        color: cfg.color, dashSize: 0.22, gapSize: 0.14,
+        transparent: true, opacity: 0.45,
       });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(cfg.x, cfg.y, cfg.z);
-      scene.add(mesh);
-      orbData.push({ mesh, speed: 0.3 + i * 0.15, phase: i * 1.2, radius: 1.5 + i * 0.3, yOffset: cfg.y });
+      const line = new THREE.Line(lineGeo, lineMat);
+      line.computeLineDistances(); // must call on Line, not BufferGeometry
+      scene.add(line);
+
+      // Yield-stream particles along the curve
+      const pGeo = new THREE.SphereGeometry(0.052, 6, 6);
+      const particles: Particle[] = Array.from({ length: 7 }, (_, p) => {
+        const mesh = new THREE.Mesh(
+          pGeo,
+          new THREE.MeshBasicMaterial({ color: cfg.color, transparent: true })
+        );
+        scene.add(mesh);
+        return { mesh, t: p / 7, speed: 0.004 + Math.random() * 0.003 };
+      });
+
+      return { orb, curve, lineGeo, lineMat, line, particles };
     });
 
-    // --- Geometric ring ---
-    const ringGeo = new THREE.TorusGeometry(14, 0.06, 16, 100);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: "#F59E0B",
-      transparent: true,
-      opacity: 0.12,
-    });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 3;
-    ring.position.z = -20;
-    scene.add(ring);
+    // ── LIGHTING ──────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0x1a2545, 3.5));
+    const goldCore = new THREE.PointLight(0xf59e0b, 5, 14);
+    scene.add(goldCore);
 
-    const ring2Geo = new THREE.TorusGeometry(20, 0.04, 16, 100);
-    const ring2Mat = new THREE.MeshBasicMaterial({
-      color: "#8B5CF6",
-      transparent: true,
-      opacity: 0.08,
-    });
-    const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
-    ring2.rotation.x = Math.PI / 5;
-    ring2.rotation.z = Math.PI / 6;
-    ring2.position.z = -25;
-    scene.add(ring2);
-
-    // --- Lights ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-    scene.add(ambientLight);
-
-    const goldLight = new THREE.PointLight("#F59E0B", 2, 50);
-    goldLight.position.set(-10, 5, 10);
-    scene.add(goldLight);
-
-    const purpleLight = new THREE.PointLight("#8B5CF6", 1.5, 40);
-    purpleLight.position.set(10, -5, 8);
-    scene.add(purpleLight);
-
-    // --- Mouse parallax ---
-    let mouseX = 0;
-    let mouseY = 0;
-    const handleMouseMove = (e: MouseEvent) => {
-      mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
-      mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+    // ── MOUSE PARALLAX ────────────────────────────────────────
+    const mouse = { x: 0, y: 0 };
+    const camLerp = { x: 0, y: 1.2 };
+    const onMouse = (e: MouseEvent) => {
+      mouse.x = (e.clientX / innerWidth - 0.5) * 2;
+      mouse.y = -(e.clientY / innerHeight - 0.5) * 2;
     };
-    window.addEventListener("mousemove", handleMouseMove);
+    addEventListener("mousemove", onMouse);
 
-    // --- Resize ---
-    const handleResize = () => {
-      const w = mount.clientWidth;
-      const h = mount.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-    window.addEventListener("resize", handleResize);
-
-    // --- Animation loop ---
-    let frameId: number;
+    // ── ANIMATE ───────────────────────────────────────────────
     const clock = new THREE.Clock();
+    let raf: number;
 
     const animate = () => {
-      frameId = requestAnimationFrame(animate);
+      raf = requestAnimationFrame(animate);
       const t = clock.getElapsedTime();
 
-      // Rotate particles slowly
-      particles.rotation.y = t * 0.02;
-      particles.rotation.x = t * 0.008;
+      // Vault pulse + rotation
+      vault.rotation.y = t * 0.22;
+      vault.rotation.x = Math.sin(t * 0.15) * 0.1;
+      vault.scale.setScalar(1 + Math.sin(t * 2.0) * 0.035);
+      halo1.rotation.z =  t * 0.5;
+      halo2.rotation.y =  t * 0.35;
+      halo3.rotation.z = -t * 0.22;
+      goldCore.intensity = 4 + Math.sin(t * 2.2) * 1.2;
 
-      // Animate orbs
-      orbData.forEach((orb) => {
-        orb.mesh.position.y = orb.yOffset + Math.sin(t * orb.speed + orb.phase) * orb.radius * 0.5;
-        orb.mesh.position.x += Math.sin(t * orb.speed * 0.7 + orb.phase) * 0.002;
-        orb.mesh.rotation.y = t * orb.speed * 0.3;
+      // Per-shield orbit + line + particles
+      SHIELDS.forEach((cfg, i) => {
+        const slot = slots[i];
+        const angle = cfg.phase + t * cfg.speed;
+        const ox = Math.cos(angle) * cfg.r;
+        const oz = Math.sin(angle) * cfg.r * 0.52;
+        const oy = Math.sin(angle * 0.65 + cfg.tilt) * 1.5;
+        slot.orb.position.set(ox, oy, oz);
+        slot.orb.rotation.y = t * 1.8;
+
+        // Rebuild dashed line to current orb position
+        const wp = slot.orb.position;
+        slot.curve.points[0].set(0, 0, 0);
+        slot.curve.points[1].set(
+          wp.x * 0.38 + Math.sin(t * 0.6 + i * 1.3) * 0.35,
+          wp.y * 0.42 + 0.9,
+          wp.z * 0.32
+        );
+        slot.curve.points[2].set(wp.x, wp.y, wp.z);
+
+        const newPts = slot.curve.getPoints(64);
+        const posAttr = slot.lineGeo.attributes.position as THREE.BufferAttribute;
+        newPts.forEach((p, j) => posAttr.setXYZ(j, p.x, p.y, p.z));
+        posAttr.needsUpdate = true;
+        slot.line.computeLineDistances(); // recompute on Line after geometry update
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (slot.lineMat as any).dashOffset -= 0.028; // animates dashes flowing outward
+
+        // Particles travel vault → shield
+        slot.particles.forEach((prt) => {
+          prt.t = (prt.t + prt.speed) % 1;
+          const pos = slot.curve.getPoint(prt.t);
+          prt.mesh.position.copy(pos);
+          (prt.mesh.material as THREE.MeshBasicMaterial).opacity =
+            Math.sin(prt.t * Math.PI) * 0.92;
+        });
       });
 
-      // Rotate rings
-      ring.rotation.z = t * 0.04;
-      ring2.rotation.z = -t * 0.025;
-
-      // Camera parallax on mouse
-      camera.position.x += (mouseX * 2 - camera.position.x) * 0.03;
-      camera.position.y += (-mouseY * 1.5 - camera.position.y) * 0.03;
-      camera.lookAt(scene.position);
-
-      // Pulse gold light
-      goldLight.intensity = 1.5 + Math.sin(t * 1.5) * 0.5;
+      // Camera parallax
+      camLerp.x += (mouse.x * 1.6 - camLerp.x) * 0.04;
+      camLerp.y += (mouse.y * 0.5 + 1.2 - camLerp.y) * 0.04;
+      camera.position.x = camLerp.x;
+      camera.position.y = camLerp.y;
+      camera.lookAt(0, 0, 0);
 
       renderer.render(scene, camera);
     };
-
     animate();
 
+    // Resize
+    const onResize = () => {
+      W = mount.clientWidth; H = mount.clientHeight;
+      camera.aspect = W / H;
+      camera.updateProjectionMatrix();
+      renderer.setSize(W, H);
+    };
+    addEventListener("resize", onResize);
+
     return () => {
-      cancelAnimationFrame(frameId);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("resize", handleResize);
+      cancelAnimationFrame(raf);
+      removeEventListener("mousemove", onMouse);
+      removeEventListener("resize", onResize);
+      slots.forEach((s) => {
+        s.particles.forEach((p) => {
+          p.mesh.geometry.dispose();
+          (p.mesh.material as THREE.Material).dispose();
+        });
+        s.lineGeo.dispose();
+        s.lineMat.dispose();
+        (s.orb.material as THREE.Material).dispose();
+      });
+      vaultMat.dispose();
+      vaultGeo.dispose();
       renderer.dispose();
-      if (mount.contains(renderer.domElement)) {
-        mount.removeChild(renderer.domElement);
-      }
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
   }, []);
 
