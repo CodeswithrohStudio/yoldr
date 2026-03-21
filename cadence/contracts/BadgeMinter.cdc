@@ -11,8 +11,22 @@ access(all) contract BadgeMinter: NonFungibleToken {
     access(all) let CollectionStoragePath: StoragePath
     access(all) let CollectionPublicPath: PublicPath
     access(all) let MinterStoragePath: StoragePath
+    // MinterPublicPath is /public/badgeMinter — published via setupMinters.cdc admin transaction
 
     access(all) var totalSupply: UInt64
+
+    // Public minter interface — callable via capabilities in execute blocks
+    access(all) resource interface MinterPublic {
+        access(all) fun mintBadge(
+            recipient: Address,
+            asset: String,
+            leverage: UFix64,
+            depositAmount: UFix64,
+            openTimestamp: UFix64,
+            returnPct: Fix64,
+            shieldType: String
+        ): @BadgeMinter.NFT
+    }
 
     // Shield Badge NFT
     access(all) resource NFT: NonFungibleToken.NFT {
@@ -116,7 +130,8 @@ access(all) contract BadgeMinter: NonFungibleToken {
         }
     }
 
-    access(all) resource Minter {
+    // Minter — implements MinterPublic so it can be published as a capability
+    access(all) resource Minter: MinterPublic {
         access(all) fun mintBadge(
             recipient: Address,
             asset: String,
@@ -125,7 +140,7 @@ access(all) contract BadgeMinter: NonFungibleToken {
             openTimestamp: UFix64,
             returnPct: Fix64,
             shieldType: String
-        ): @NFT {
+        ): @BadgeMinter.NFT {
             BadgeMinter.totalSupply = BadgeMinter.totalSupply + 1
             let badge <- create NFT(
                 id: BadgeMinter.totalSupply,
@@ -169,6 +184,7 @@ access(all) contract BadgeMinter: NonFungibleToken {
 
         let minter <- create Minter()
         self.account.storage.save(<-minter, to: self.MinterStoragePath)
+        // Capability published separately via setupMinters.cdc admin transaction at /public/badgeMinter
 
         emit ContractInitialized()
     }

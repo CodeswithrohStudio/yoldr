@@ -17,6 +17,7 @@ access(all) contract ShieldPosition: NonFungibleToken {
     access(all) let CollectionStoragePath: StoragePath
     access(all) let CollectionPublicPath: PublicPath
     access(all) let MinterStoragePath: StoragePath
+    // MinterPublicPath is /public/shieldPositionMinter — published via setupMinters.cdc admin transaction
 
     access(all) var totalSupply: UInt64
 
@@ -37,6 +38,15 @@ access(all) contract ShieldPosition: NonFungibleToken {
             self.petType = petType
             self.emoji = emoji
         }
+    }
+
+    // Public minter interface — callable via capabilities in execute blocks
+    access(all) resource interface MinterPublic {
+        access(all) fun openShield(
+            user: Address,
+            shieldType: String,
+            depositAmount: UFix64
+        ): @ShieldPosition.NFT
     }
 
     // NFT resource representing an open position
@@ -160,13 +170,13 @@ access(all) contract ShieldPosition: NonFungibleToken {
         }
     }
 
-    // Minter resource
-    access(all) resource Minter {
+    // Minter — implements MinterPublic so it can be published as a capability
+    access(all) resource Minter: MinterPublic {
         access(all) fun openShield(
             user: Address,
             shieldType: String,
             depositAmount: UFix64
-        ): @NFT {
+        ): @ShieldPosition.NFT {
             let config = ShieldPosition.SHIELDS[shieldType]
                 ?? panic("Invalid shield type")
 
@@ -224,6 +234,7 @@ access(all) contract ShieldPosition: NonFungibleToken {
 
         let minter <- create Minter()
         self.account.storage.save(<-minter, to: self.MinterStoragePath)
+        // Capability published separately via setupMinters.cdc admin transaction at /public/shieldPositionMinter
 
         emit ContractInitialized()
     }

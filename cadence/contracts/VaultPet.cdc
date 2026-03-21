@@ -17,11 +17,17 @@ access(all) contract VaultPet: NonFungibleToken {
     access(all) let CollectionStoragePath: StoragePath
     access(all) let CollectionPublicPath: PublicPath
     access(all) let MinterStoragePath: StoragePath
+    // MinterPublicPath is /public/vaultPetMinter — published via setupMinters.cdc admin transaction
 
     access(all) var totalSupply: UInt64
 
     // XP thresholds for levels
     access(all) let XP_PER_LEVEL: UInt64
+
+    // Public minter interface — callable via capabilities in execute blocks
+    access(all) resource interface MinterPublic {
+        access(all) fun mintPet(recipient: Address, petType: String): @VaultPet.NFT
+    }
 
     // Pet NFT resource
     access(all) resource NFT: NonFungibleToken.NFT {
@@ -53,7 +59,6 @@ access(all) contract VaultPet: NonFungibleToken {
                 self.level = newLevel
                 emit PetLeveledUp(id: self.id, newLevel: newLevel, xp: self.xp)
 
-                // Check for skin evolution
                 if self.level >= 10 && self.currentSkin == "base" {
                     self.currentSkin = "silver"
                     emit PetEvolved(id: self.id, newSkin: "silver")
@@ -146,9 +151,9 @@ access(all) contract VaultPet: NonFungibleToken {
         }
     }
 
-    // Minter
-    access(all) resource Minter {
-        access(all) fun mintPet(recipient: Address, petType: String): @NFT {
+    // Minter — implements MinterPublic so it can be published as a capability
+    access(all) resource Minter: MinterPublic {
+        access(all) fun mintPet(recipient: Address, petType: String): @VaultPet.NFT {
             VaultPet.totalSupply = VaultPet.totalSupply + 1
             let nft <- create NFT(id: VaultPet.totalSupply, petType: petType)
             emit PetCreated(id: nft.id, owner: recipient, petType: petType)
@@ -177,6 +182,7 @@ access(all) contract VaultPet: NonFungibleToken {
 
         let minter <- create Minter()
         self.account.storage.save(<-minter, to: self.MinterStoragePath)
+        // Capability published separately via setupMinters.cdc admin transaction at /public/vaultPetMinter
 
         emit ContractInitialized()
     }

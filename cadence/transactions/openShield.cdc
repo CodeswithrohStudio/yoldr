@@ -8,24 +8,23 @@ transaction(shieldType: String) {
     prepare(signer: auth(BorrowValue, SaveValue, IssueStorageCapabilityController, PublishCapability) &Account) {
         self.userAddress = signer.address
 
-        // Setup ShieldPosition collection if needed
+        // Setup ShieldPosition collection if not already present
         if signer.storage.borrow<&ShieldPosition.Collection>(from: ShieldPosition.CollectionStoragePath) == nil {
             let collection <- ShieldPosition.createEmptyCollection(nftType: Type<@ShieldPosition.NFT>())
             signer.storage.save(<-collection, to: ShieldPosition.CollectionStoragePath)
             let cap = signer.capabilities.storage.issue<&ShieldPosition.Collection>(ShieldPosition.CollectionStoragePath)
             signer.capabilities.publish(cap, at: ShieldPosition.CollectionPublicPath)
         }
-    }
 
-    execute {
-        // Harvest current yield to use as margin
+        // Harvest accrued yield to use as margin
+        // All storage access MUST happen in prepare — execute block cannot call storage.borrow
         let yieldAmount = Yoldr.harvestYield(user: self.userAddress)
-        let marginAmount = yieldAmount > 0.0 ? yieldAmount : 1.0 // Minimum 1 FLOW for demo
+        let marginAmount = yieldAmount > 0.0 ? yieldAmount : 1.0
 
-        // Mint the shield position NFT
-        let minterRef = getAccount(0x8401ed4fc6788c8a).storage.borrow<&ShieldPosition.Minter>(
-            from: ShieldPosition.MinterStoragePath
-        ) ?? panic("Could not borrow shield minter")
+        // Borrow the ShieldPosition minter via public capability
+        let minterRef = getAccount(0x8401ed4fc6788c8a)
+            .capabilities.borrow<&{ShieldPosition.MinterPublic}>(/public/shieldPositionMinter)
+            ?? panic("Could not borrow ShieldPosition minter — run setupMinters.cdc first")
 
         let position <- minterRef.openShield(
             user: self.userAddress,
@@ -33,15 +32,8 @@ transaction(shieldType: String) {
             depositAmount: marginAmount
         )
 
-        // Store position in user's collection
-        let collectionRef = getAccount(self.userAddress).storage.borrow<&ShieldPosition.Collection>(
-            from: ShieldPosition.CollectionStoragePath
-        ) ?? panic("Could not borrow shield collection")
-
-        // Update pet to equip shield
-        if let petCollection = getAccount(self.userAddress).storage.borrow<&VaultPet.Collection>(
-            from: VaultPet.CollectionStoragePath
-        ) {
+        // Update Vault Pet if one exists
+        if let petCollection = signer.storage.borrow<&VaultPet.Collection>(from: VaultPet.CollectionStoragePath) {
             let petIDs = petCollection.getIDs()
             if petIDs.length > 0 {
                 if let pet = petCollection.borrowVaultPet(petIDs[0]) {
@@ -51,6 +43,11 @@ transaction(shieldType: String) {
             }
         }
 
+        // Deposit position NFT into user's collection
+        let collectionRef = signer.storage.borrow<&ShieldPosition.Collection>(from: ShieldPosition.CollectionStoragePath)
+            ?? panic("Could not borrow shield collection")
         collectionRef.deposit(token: <-position)
     }
+
+    execute {}
 }

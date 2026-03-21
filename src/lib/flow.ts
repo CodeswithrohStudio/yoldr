@@ -7,8 +7,11 @@ fcl.config({
   "flow.network": "testnet",
   "accessNode.api": "https://rest-testnet.onflow.org",
   "discovery.wallet": "https://fcl-discovery.onflow.org/testnet/authn",
+  "walletconnect.projectId": "3eaaad8fa7e823d688f3cf1e21194910",
   "app.detail.title": "Yoldr",
   "app.detail.icon": "https://yoldr.app/icon.png",
+  "app.detail.description": "You Only Lose (the) yield, Really — principal-protected DeFi on Flow",
+  "app.detail.url": "https://yoldr.app",
   "0xFungibleToken": "0x9a0766d93b6608b7",
   "0xFlowToken": "0x7e60df042a9c0868",
   "0xNonFungibleToken": "0x631e88ae7f1d7c20",
@@ -211,33 +214,37 @@ transaction(amount: UFix64, petType: String) {
 
   prepare(signer: auth(BorrowValue, SaveValue, IssueStorageCapabilityController, PublishCapability) &Account) {
     self.userAddress = signer.address
+
+    // Withdraw from user FLOW vault
     let vaultRef = signer.storage.borrow<auth(FungibleToken.Withdraw) &FlowToken.Vault>(
       from: /storage/flowTokenVault
     ) ?? panic("Could not borrow flow token vault")
     self.payment <- vaultRef.withdraw(amount: amount)
 
+    // Setup VaultPet collection if not already present
     if signer.storage.borrow<&VaultPet.Collection>(from: VaultPet.CollectionStoragePath) == nil {
       let collection <- VaultPet.createEmptyCollection(nftType: Type<@VaultPet.NFT>())
       signer.storage.save(<-collection, to: VaultPet.CollectionStoragePath)
       let cap = signer.capabilities.storage.issue<&VaultPet.Collection>(VaultPet.CollectionStoragePath)
       signer.capabilities.publish(cap, at: VaultPet.CollectionPublicPath)
     }
+
+    // Mint a Vault Pet if user doesn't have one yet
+    // All storage access MUST happen in prepare — execute block cannot call storage.borrow
+    let collectionRef = signer.storage.borrow<&VaultPet.Collection>(from: VaultPet.CollectionStoragePath)
+      ?? panic("Could not borrow pet collection")
+
+    if collectionRef.getLength() == 0 {
+      let minterRef = getAccount(0x8401ed4fc6788c8a)
+        .capabilities.borrow<&{VaultPet.MinterPublic}>(/public/vaultPetMinter)
+        ?? panic("Could not borrow VaultPet minter — run setupMinters.cdc first")
+      let pet <- minterRef.mintPet(recipient: self.userAddress, petType: petType)
+      collectionRef.deposit(token: <-pet)
+    }
   }
 
   execute {
     Yoldr.deposit(payment: <-self.payment, user: self.userAddress)
-
-    let petCollection = getAccount(self.userAddress).storage.borrow<&VaultPet.Collection>(
-      from: VaultPet.CollectionStoragePath
-    ) ?? panic("Could not borrow pet collection")
-
-    if petCollection.getLength() == 0 {
-      let minterRef = getAccount(0x8401ed4fc6788c8a).storage.borrow<&VaultPet.Minter>(
-        from: VaultPet.MinterStoragePath
-      ) ?? panic("Could not borrow minter")
-      let pet <- minterRef.mintPet(recipient: self.userAddress, petType: petType)
-      petCollection.deposit(token: <-pet)
-    }
   }
 }
   `,
@@ -271,31 +278,26 @@ transaction(shieldType: String) {
 
   prepare(signer: auth(BorrowValue, SaveValue, IssueStorageCapabilityController, PublishCapability) &Account) {
     self.userAddress = signer.address
+
+    // Setup ShieldPosition collection if not already present
     if signer.storage.borrow<&ShieldPosition.Collection>(from: ShieldPosition.CollectionStoragePath) == nil {
       let collection <- ShieldPosition.createEmptyCollection(nftType: Type<@ShieldPosition.NFT>())
       signer.storage.save(<-collection, to: ShieldPosition.CollectionStoragePath)
       let cap = signer.capabilities.storage.issue<&ShieldPosition.Collection>(ShieldPosition.CollectionStoragePath)
       signer.capabilities.publish(cap, at: ShieldPosition.CollectionPublicPath)
     }
-  }
 
-  execute {
+    // All storage access MUST happen in prepare — execute block cannot call storage.borrow
     let yieldAmount = Yoldr.harvestYield(user: self.userAddress)
     let marginAmount = yieldAmount > 0.0 ? yieldAmount : 1.0
 
-    let minterRef = getAccount(0x8401ed4fc6788c8a).storage.borrow<&ShieldPosition.Minter>(
-      from: ShieldPosition.MinterStoragePath
-    ) ?? panic("Could not borrow shield minter")
+    let minterRef = getAccount(0x8401ed4fc6788c8a)
+      .capabilities.borrow<&{ShieldPosition.MinterPublic}>(/public/shieldPositionMinter)
+      ?? panic("Could not borrow ShieldPosition minter — run setupMinters.cdc first")
 
     let position <- minterRef.openShield(user: self.userAddress, shieldType: shieldType, depositAmount: marginAmount)
 
-    let collectionRef = getAccount(self.userAddress).storage.borrow<&ShieldPosition.Collection>(
-      from: ShieldPosition.CollectionStoragePath
-    ) ?? panic("Could not borrow shield collection")
-
-    if let petCollection = getAccount(self.userAddress).storage.borrow<&VaultPet.Collection>(
-      from: VaultPet.CollectionStoragePath
-    ) {
+    if let petCollection = signer.storage.borrow<&VaultPet.Collection>(from: VaultPet.CollectionStoragePath) {
       let petIDs = petCollection.getIDs()
       if petIDs.length > 0 {
         if let pet = petCollection.borrowVaultPet(petIDs[0]) {
@@ -304,8 +306,13 @@ transaction(shieldType: String) {
         }
       }
     }
+
+    let collectionRef = signer.storage.borrow<&ShieldPosition.Collection>(from: ShieldPosition.CollectionStoragePath)
+      ?? panic("Could not borrow shield collection")
     collectionRef.deposit(token: <-position)
   }
+
+  execute {}
 }
   `,
 
@@ -320,16 +327,18 @@ transaction(positionId: UInt64) {
 
   prepare(signer: auth(BorrowValue, SaveValue, IssueStorageCapabilityController, PublishCapability) &Account) {
     self.userAddress = signer.address
+
+    // Setup badge collection if not already present
     if signer.storage.borrow<&BadgeMinter.Collection>(from: BadgeMinter.CollectionStoragePath) == nil {
       let collection <- BadgeMinter.createEmptyCollection(nftType: Type<@BadgeMinter.NFT>())
       signer.storage.save(<-collection, to: BadgeMinter.CollectionStoragePath)
       let cap = signer.capabilities.storage.issue<&BadgeMinter.Collection>(BadgeMinter.CollectionStoragePath)
       signer.capabilities.publish(cap, at: BadgeMinter.CollectionPublicPath)
     }
-  }
 
-  execute {
-    let shieldCollection = getAccount(self.userAddress).storage.borrow<&ShieldPosition.Collection>(
+    // All storage access MUST happen in prepare — execute block cannot call storage.borrow
+    // Borrow shield collection with Withdraw entitlement to remove position
+    let shieldCollection = signer.storage.borrow<auth(NonFungibleToken.Withdraw) &ShieldPosition.Collection>(
       from: ShieldPosition.CollectionStoragePath
     ) ?? panic("Could not borrow shield collection")
 
@@ -341,9 +350,9 @@ transaction(positionId: UInt64) {
     let priceChangePct = priceChange / Fix64(position.openPrice)
     let returnPct = priceChangePct * Fix64(position.leverage)
 
-    let badgeMinterRef = getAccount(0x8401ed4fc6788c8a).storage.borrow<&BadgeMinter.Minter>(
-      from: BadgeMinter.MinterStoragePath
-    ) ?? panic("Could not borrow badge minter")
+    let badgeMinterRef = getAccount(0x8401ed4fc6788c8a)
+      .capabilities.borrow<&{BadgeMinter.MinterPublic}>(/public/badgeMinter)
+      ?? panic("Could not borrow BadgeMinter — run setupMinters.cdc first")
 
     let badge <- badgeMinterRef.mintBadge(
       recipient: self.userAddress, asset: position.asset, leverage: position.leverage,
@@ -351,14 +360,11 @@ transaction(positionId: UInt64) {
       returnPct: returnPct, shieldType: position.shieldType
     )
 
-    let badgeCollection = getAccount(self.userAddress).storage.borrow<&BadgeMinter.Collection>(
-      from: BadgeMinter.CollectionStoragePath
-    ) ?? panic("Could not borrow badge collection")
+    let badgeCollection = signer.storage.borrow<&BadgeMinter.Collection>(from: BadgeMinter.CollectionStoragePath)
+      ?? panic("Could not borrow badge collection")
     badgeCollection.deposit(token: <-badge)
 
-    if let petCollection = getAccount(self.userAddress).storage.borrow<&VaultPet.Collection>(
-      from: VaultPet.CollectionStoragePath
-    ) {
+    if let petCollection = signer.storage.borrow<&VaultPet.Collection>(from: VaultPet.CollectionStoragePath) {
       let petIDs = petCollection.getIDs()
       if petIDs.length > 0 {
         if let pet = petCollection.borrowVaultPet(petIDs[0]) {
@@ -367,9 +373,12 @@ transaction(positionId: UInt64) {
         }
       }
     }
+
     let closedPosition <- shieldCollection.withdraw(withdrawID: positionId)
     destroy closedPosition
   }
+
+  execute {}
 }
   `,
 

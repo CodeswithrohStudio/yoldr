@@ -9,18 +9,17 @@ transaction(positionId: UInt64) {
     prepare(signer: auth(BorrowValue, SaveValue, IssueStorageCapabilityController, PublishCapability) &Account) {
         self.userAddress = signer.address
 
-        // Setup badge collection if needed
+        // Setup badge collection if not already present
         if signer.storage.borrow<&BadgeMinter.Collection>(from: BadgeMinter.CollectionStoragePath) == nil {
             let collection <- BadgeMinter.createEmptyCollection(nftType: Type<@BadgeMinter.NFT>())
             signer.storage.save(<-collection, to: BadgeMinter.CollectionStoragePath)
             let cap = signer.capabilities.storage.issue<&BadgeMinter.Collection>(BadgeMinter.CollectionStoragePath)
             signer.capabilities.publish(cap, at: BadgeMinter.CollectionPublicPath)
         }
-    }
 
-    execute {
-        // Get position from user's collection
-        let shieldCollection = getAccount(self.userAddress).storage.borrow<&ShieldPosition.Collection>(
+        // All storage access MUST happen in prepare — execute block cannot call storage.borrow
+        // Borrow the shield collection with Withdraw entitlement (needed to remove position)
+        let shieldCollection = signer.storage.borrow<auth(NonFungibleToken.Withdraw) &ShieldPosition.Collection>(
             from: ShieldPosition.CollectionStoragePath
         ) ?? panic("Could not borrow shield collection")
 
@@ -31,13 +30,12 @@ transaction(positionId: UInt64) {
         let currentPrice = MockPriceFeed.getPrice(asset: position.asset)
         let priceChange = Fix64(currentPrice) - Fix64(position.openPrice)
         let priceChangePct = priceChange / Fix64(position.openPrice)
-        let leveragedPct = priceChangePct * Fix64(position.leverage)
-        let returnPct = leveragedPct
+        let returnPct = priceChangePct * Fix64(position.leverage)
 
-        // Mint Badge NFT
-        let badgeMinterRef = getAccount(0x8401ed4fc6788c8a).storage.borrow<&BadgeMinter.Minter>(
-            from: BadgeMinter.MinterStoragePath
-        ) ?? panic("Could not borrow badge minter")
+        // Borrow the BadgeMinter via public capability
+        let badgeMinterRef = getAccount(0x8401ed4fc6788c8a)
+            .capabilities.borrow<&{BadgeMinter.MinterPublic}>(/public/badgeMinter)
+            ?? panic("Could not borrow BadgeMinter — run setupMinters.cdc first")
 
         let badge <- badgeMinterRef.mintBadge(
             recipient: self.userAddress,
@@ -49,16 +47,13 @@ transaction(positionId: UInt64) {
             shieldType: position.shieldType
         )
 
-        // Store badge
-        let badgeCollection = getAccount(self.userAddress).storage.borrow<&BadgeMinter.Collection>(
-            from: BadgeMinter.CollectionStoragePath
-        ) ?? panic("Could not borrow badge collection")
+        // Store badge in user's collection
+        let badgeCollection = signer.storage.borrow<&BadgeMinter.Collection>(from: BadgeMinter.CollectionStoragePath)
+            ?? panic("Could not borrow badge collection")
         badgeCollection.deposit(token: <-badge)
 
-        // Update pet XP on position close
-        if let petCollection = getAccount(self.userAddress).storage.borrow<&VaultPet.Collection>(
-            from: VaultPet.CollectionStoragePath
-        ) {
+        // Award XP to pet and unequip shield
+        if let petCollection = signer.storage.borrow<&VaultPet.Collection>(from: VaultPet.CollectionStoragePath) {
             let petIDs = petCollection.getIDs()
             if petIDs.length > 0 {
                 if let pet = petCollection.borrowVaultPet(petIDs[0]) {
@@ -68,8 +63,10 @@ transaction(positionId: UInt64) {
             }
         }
 
-        // Burn the position NFT
+        // Burn the closed position NFT
         let closedPosition <- shieldCollection.withdraw(withdrawID: positionId)
         destroy closedPosition
     }
+
+    execute {}
 }
