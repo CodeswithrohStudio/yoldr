@@ -8,9 +8,22 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        orbitron: ["Orbitron", "sans-serif"],
+        exo: ["Exo 2", "sans-serif"],
+      },
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        primary: "#F59E0B",
+        cta: "#8B5CF6",
+        surface: "#1E293B",
+        "surface-2": "#0F172A",
+      },
+      maxWidth: {
+        "480px": "480px",
+      },
+      animation: {
+        "spin-slow": "spin 8s linear infinite",
+        "float": "float 3s ease-in-out infinite",
       },
     },
   },
