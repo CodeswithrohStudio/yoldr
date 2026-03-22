@@ -1,5 +1,4 @@
 <div align="center">
-  <img src="public/icon.png" alt="Yoldr Logo" width="120" />
   <h1>YOLDR</h1>
   <p><strong>You Only Lose (the) yield, Really.</strong></p>
   <p>Principal-protected DeFi on Flow — your savings stay home while your yield goes adventuring.</p>
