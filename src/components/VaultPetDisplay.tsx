@@ -16,14 +16,53 @@ const SKIN_RING: Record<string, string> = {
   legendary: "border-purple-400/80",
 };
 
+// ── Mood system — the animal FEELS the markets ────────────────────────────────
+function getMood(pet: PetState, returnPct?: number): {
+  label: string;
+  icon: string;
+  color: string;
+  animation: "bounce" | "shake" | "breathe" | "spin";
+} {
+  if (!pet.shieldType) {
+    // No shield equipped — pet is resting
+    return { label: "Resting", icon: "💤", color: "text-slate-500", animation: "breathe" };
+  }
+  if (returnPct === undefined) {
+    return { label: "On Watch", icon: "👁️", color: "text-blue-400", animation: "breathe" };
+  }
+  if (returnPct >= 0.15) {
+    return { label: "Winning!", icon: "🔥", color: "text-yellow-400", animation: "bounce" };
+  }
+  if (returnPct >= 0.0) {
+    return { label: "Holding Strong", icon: "⚔️", color: "text-emerald-400", animation: "bounce" };
+  }
+  if (returnPct >= -0.1) {
+    return { label: "In Battle", icon: "😤", color: "text-orange-400", animation: "shake" };
+  }
+  return { label: "Taking Hits", icon: "🩸", color: "text-red-400", animation: "shake" };
+}
+
+// Return inline animate + transition props based on mood
+function moodMotion(animation: "bounce" | "shake" | "breathe" | "spin") {
+  switch (animation) {
+    case "bounce":  return { animate: { y: [0, -10, 0] as number[] },         transition: { duration: 2.2, repeat: Infinity } };
+    case "shake":   return { animate: { rotate: [-4, 4, -4, 4, -4, 0] as number[] }, transition: { duration: 0.6, repeat: Infinity } };
+    case "spin":    return { animate: { rotate: [0, 360] as number[] },        transition: { duration: 1.5, repeat: Infinity } };
+    default:        return { animate: { scale: [1, 1.04, 1] as number[] },     transition: { duration: 4,   repeat: Infinity } };
+  }
+}
+
 interface VaultPetDisplayProps {
   pet: PetState;
   size?: "sm" | "md" | "lg";
+  returnPct?: number; // live P&L from position, passed in from parent
+  onFeed?: () => void; // daily feed callback
 }
 
-export default function VaultPetDisplay({ pet, size = "md" }: VaultPetDisplayProps) {
+export default function VaultPetDisplay({ pet, size = "md", returnPct, onFeed }: VaultPetDisplayProps) {
   const config = PET_CONFIG[pet.petType] || PET_CONFIG.Griffin;
   const skinRing = SKIN_RING[pet.currentSkin] || SKIN_RING.base;
+  const mood = getMood(pet, returnPct);
 
   const sizeClasses = {
     sm: { container: "w-16 h-16", emoji: "text-2xl" },
@@ -37,10 +76,20 @@ export default function VaultPetDisplay({ pet, size = "md" }: VaultPetDisplayPro
     <div className="flex flex-col items-center gap-3">
       {/* Animated pet */}
       <motion.div
-        animate={pet.health > 0.3 ? { y: [0, -8, 0] } : { rotate: [-3, 3, -3] }}
-        transition={{ duration: pet.health > 0.3 ? 2.5 : 0.8, repeat: Infinity, ease: "easeInOut" }}
-        className="relative"
+        {...moodMotion(mood.animation)}
+        className="relative cursor-pointer"
+        onClick={onFeed}
+        title={onFeed ? "Tap to feed your pet" : undefined}
       >
+        {/* Battle flash for shake mood */}
+        {mood.animation === "shake" && (
+          <motion.div
+            className="absolute inset-0 rounded-full bg-red-500"
+            animate={{ opacity: [0, 0.15, 0] }}
+            transition={{ duration: 0.6, repeat: Infinity }}
+          />
+        )}
+
         {/* Outer glow ring */}
         <div
           className={`${sizeClasses.container} rounded-full border-2 ${skinRing} flex items-center justify-center relative`}
@@ -60,9 +109,16 @@ export default function VaultPetDisplay({ pet, size = "md" }: VaultPetDisplayPro
               🛡️
             </div>
           )}
+
+          {/* Feed hint */}
+          {onFeed && (
+            <div className="absolute -top-1 -right-1 w-6 h-6 bg-emerald-500/90 rounded-full flex items-center justify-center text-xs border-2 border-slate-900 font-bold text-white">
+              +
+            </div>
+          )}
         </div>
 
-        {/* Skin sparkle for gold/legendary */}
+        {/* Legendary / gold skin sparkle */}
         {(pet.currentSkin === "gold" || pet.currentSkin === "legendary") && (
           <motion.div
             className="absolute inset-0 rounded-full"
@@ -77,6 +133,19 @@ export default function VaultPetDisplay({ pet, size = "md" }: VaultPetDisplayPro
           />
         )}
       </motion.div>
+
+      {/* Mood badge */}
+      {size !== "sm" && (
+        <motion.div
+          key={mood.label}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-white/8 text-xs font-semibold ${mood.color}`}
+        >
+          <span>{mood.icon}</span>
+          <span>{mood.label}</span>
+        </motion.div>
+      )}
 
       {/* Pet info */}
       {size !== "sm" && (

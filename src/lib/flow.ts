@@ -317,6 +317,7 @@ transaction(shieldType: String) {
   `,
 
   closeShield: `
+import NonFungibleToken from 0x631e88ae7f1d7c20
 import ShieldPosition from 0x8401ed4fc6788c8a
 import BadgeMinter from 0x8401ed4fc6788c8a
 import VaultPet from 0x8401ed4fc6788c8a

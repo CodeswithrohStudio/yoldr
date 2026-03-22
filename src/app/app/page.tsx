@@ -7,6 +7,7 @@ import { fcl, SCRIPTS, TRANSACTIONS, PET_EMOJI } from "@/lib/flow";
 import { useYoldrStore } from "@/store/useYoldrStore";
 import VaultPetDisplay from "@/components/VaultPetDisplay";
 import StreakBar from "@/components/StreakBar";
+import DepositLoadingScreen from "@/components/DepositLoadingScreen";
 
 const PET_OPTIONS = [
   { type: "Griffin", emoji: "🦁", label: "Griffin", color: "border-yellow-500/50 bg-yellow-500/10" },
@@ -62,6 +63,25 @@ export default function DashboardPage() {
   const [selectedPetType, setSelectedPetType] = useState("Griffin");
   const [isDepositing, setIsDepositing] = useState(false);
   const [depositError, setDepositError] = useState("");
+
+  // Daily feed state — stored in localStorage with date key
+  const [fedToday, setFedToday] = useState(false);
+  const [feedPop, setFeedPop] = useState(false);
+
+  useEffect(() => {
+    const today = new Date().toDateString();
+    setFedToday(localStorage.getItem("yoldr_fed") === today);
+  }, []);
+
+  function handleFeedPet() {
+    if (fedToday) return;
+    const today = new Date().toDateString();
+    localStorage.setItem("yoldr_fed", today);
+    setFedToday(true);
+    setFeedPop(true);
+    addToast({ message: "🐾 You fed your pet! +10 XP (next login refreshes)", type: "success" });
+    setTimeout(() => setFeedPop(false), 2000);
+  }
 
   const fetchData = useCallback(async () => {
     if (!user?.addr) return;
@@ -185,8 +205,16 @@ export default function DashboardPage() {
 
   const activePosition = positions[0] ?? null;
 
+  const activeReturnPct = activePosition?.returnPct;
+
   return (
     <div className="flex flex-col min-h-screen px-4 pt-4 pb-6">
+      {/* ── Storytelling deposit loading screen ── */}
+      <DepositLoadingScreen
+        show={isDepositing}
+        petType={selectedPetType}
+        amount={depositAmount}
+      />
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-4">
         <motion.h1
@@ -246,7 +274,39 @@ export default function DashboardPage() {
             className="flex justify-center mb-5"
           >
             {pet ? (
-              <VaultPetDisplay pet={pet} size="lg" />
+              <div className="relative">
+                <VaultPetDisplay
+                  pet={pet}
+                  size="lg"
+                  returnPct={activeReturnPct}
+                  onFeed={!fedToday ? handleFeedPet : undefined}
+                />
+                {/* Daily feed tooltip */}
+                {!fedToday && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.5 }}
+                    className="text-center text-xs text-slate-600 mt-1"
+                  >
+                    tap to feed · earns streak XP
+                  </motion.p>
+                )}
+                {/* Feed pop effect */}
+                <AnimatePresence>
+                  {feedPop && (
+                    <motion.div
+                      initial={{ opacity: 1, y: 0, scale: 0.8 }}
+                      animate={{ opacity: 0, y: -48, scale: 1.2 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 1.2, ease: "easeOut" }}
+                      className="absolute top-0 left-1/2 -translate-x-1/2 text-2xl pointer-events-none"
+                    >
+                      ✨+10 XP
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             ) : (
               <div className="flex flex-col items-center gap-2">
                 <div
