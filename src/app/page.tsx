@@ -215,10 +215,10 @@ export default function LandingPage() {
               <button
                 onClick={handleLogin}
                 disabled={loading}
-                className="cursor-pointer px-8 py-3.5 rounded-2xl font-bold text-sm text-white
-                  bg-gradient-to-r from-violet-600 to-purple-700
-                  hover:from-violet-500 hover:to-purple-600
-                  shadow-lg shadow-purple-700/35 transition-all duration-200
+                className="cursor-pointer px-8 py-3.5 rounded-2xl font-bold text-sm text-black
+                  bg-gradient-to-r from-yellow-400 to-amber-500
+                  hover:from-yellow-300 hover:to-amber-400
+                  shadow-lg shadow-yellow-500/35 transition-all duration-200
                   disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{ fontFamily: "Exo 2, sans-serif" }}
               >
