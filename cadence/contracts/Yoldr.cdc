@@ -225,6 +225,27 @@ access(all) contract Yoldr {
         emit RebalanceComplete(timestamp: now, totalUsers: userCount)
     }
 
+    // Public streak ping — any user can call this for themselves once per 24 h
+    access(all) fun pingStreak(user: Address) {
+        if let vault = self.vaults[user] {
+            let now = getCurrentBlock().timestamp
+            let dayInSeconds: UFix64 = 86400.0
+            if now - vault.lastStreakPing >= dayInSeconds {
+                let updatedVault = VaultState(
+                    principal: vault.principal,
+                    depositTimestamp: vault.depositTimestamp,
+                    yieldBalance: vault.yieldBalance,
+                    lastHarvestTimestamp: vault.lastHarvestTimestamp,
+                    totalYieldEarned: vault.totalYieldEarned,
+                    streakCount: vault.streakCount + 1,
+                    lastStreakPing: now,
+                    xpPoints: vault.xpPoints + 10
+                )
+                self.vaults[user] = updatedVault
+            }
+        }
+    }
+
     // Getters
     access(all) fun getVaultState(user: Address): VaultState? {
         return self.vaults[user]
