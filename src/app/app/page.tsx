@@ -154,6 +154,28 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData]);
 
+  // Auto-ping streak once per day (silently — no wallet popup needed, contract checks 24h)
+  useEffect(() => {
+    if (!user?.addr) return;
+    const key = `yoldr_streak_ping_${user.addr}`;
+    const today = new Date().toDateString();
+    if (localStorage.getItem(key) === today) return;
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    (fcl.mutate as any)({
+      cadence: TRANSACTIONS.pingStreak,
+      args: (arg: any, t: any) => [arg(user.addr, t.Address)],
+      limit: 100,
+    })
+    /* eslint-enable @typescript-eslint/no-explicit-any */.then(() => {
+      localStorage.setItem(key, today);
+      // Refresh vault data so streak count updates in UI
+      setTimeout(fetchData, 3000);
+    }).catch(() => {
+      // silently swallow — streak ping is best-effort
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.addr]);
+
   // Poll every 10 seconds
   useEffect(() => {
     const interval = setInterval(fetchData, 10_000);
@@ -205,7 +227,7 @@ export default function DashboardPage() {
 
   const activePosition = positions[0] ?? null;
 
-  const activeReturnPct = activePosition?.returnPct;
+  const activeReturnPct = activePosition?.returnPct ?? 0;
 
   return (
     <div className="flex flex-col min-h-screen px-4 pt-4 pb-6">
@@ -426,30 +448,31 @@ export default function DashboardPage() {
             </motion.div>
           )}
 
-          {/* ── Active position card ── */}
-          {activePosition && (
+          {/* ── Active position cards ── */}
+          {positions.map((pos, i) => (
             <motion.div
+              key={pos.id}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
+              transition={{ delay: 0.35 + i * 0.08 }}
               className="glass rounded-2xl p-4 mb-4 border border-white/8"
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{PET_EMOJI[activePosition.shieldType] ?? "🛡️"}</span>
+                  <span className="text-lg">{PET_EMOJI[pos.shieldType] ?? "🛡️"}</span>
                   <div>
-                    <p className="text-white font-bold text-sm">{activePosition.shieldType.replace(/_/g, " ")}</p>
-                    <p className="text-slate-500 text-xs">{activePosition.asset} · {activePosition.leverage}x</p>
+                    <p className="text-white font-bold text-sm">{pos.shieldType.replace(/_/g, " ")}</p>
+                    <p className="text-slate-500 text-xs">{pos.asset} · {pos.leverage}x</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p
                     className={`font-orbitron font-bold text-base ${
-                      activePosition.returnPct >= 0 ? "text-green-400" : "text-red-400"
+                      pos.returnPct >= 0 ? "text-green-400" : "text-red-400"
                     }`}
                   >
-                    {activePosition.returnPct >= 0 ? "+" : ""}
-                    {(activePosition.returnPct * 100).toFixed(2)}%
+                    {pos.returnPct >= 0 ? "+" : ""}
+                    {(pos.returnPct * 100).toFixed(2)}%
                   </p>
                   <p className="text-slate-500 text-xs">P&amp;L</p>
                 </div>
@@ -460,21 +483,21 @@ export default function DashboardPage() {
                 <div className="flex justify-between text-xs text-slate-500 mb-1.5">
                   <span>Position health</span>
                   <span className="font-mono">
-                    {activePosition.depositAmount.toFixed(4)} FLOW margin
+                    {pos.depositAmount.toFixed(4)} FLOW margin
                   </span>
                 </div>
                 <div className="progress-bar">
                   <motion.div
                     className={`h-full rounded-full ${
-                      activePosition.returnPct >= 0.1
+                      pos.returnPct >= 0.1
                         ? "bg-gradient-to-r from-green-500 to-emerald-400"
-                        : activePosition.returnPct >= 0
+                        : pos.returnPct >= 0
                         ? "bg-gradient-to-r from-yellow-500 to-amber-400"
                         : "bg-gradient-to-r from-red-600 to-red-400"
                     }`}
                     initial={{ width: 0 }}
                     animate={{
-                      width: `${Math.min(100, Math.max(5, 50 + activePosition.returnPct * 100))}%`,
+                      width: `${Math.min(100, Math.max(5, 50 + pos.returnPct * 100))}%`,
                     }}
                     transition={{ duration: 0.8 }}
                   />
@@ -482,11 +505,11 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex justify-between mt-3 text-xs text-slate-500">
-                <span>Open @ {activePosition.openPrice.toFixed(2)}</span>
-                <span>Now @ {activePosition.currentPrice.toFixed(2)}</span>
+                <span>Open @ {pos.openPrice.toFixed(2)}</span>
+                <span>Now @ {pos.currentPrice.toFixed(2)}</span>
               </div>
             </motion.div>
-          )}
+          ))}
 
           {/* ── No positions prompt ── */}
           {vault && positions.length === 0 && (

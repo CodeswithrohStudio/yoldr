@@ -198,10 +198,101 @@ access(all) fun main(user: Address): [BadgeInfo] {
   return badges
 }
   `,
+
+  // ── Single script that reads ALL vault users in one round-trip ───────────
+  // Uses Yoldr.vaults (access(all) public dict) to enumerate every depositor,
+  // then borrows VaultPet + BadgeMinter collections per-address in the same script.
+  // This avoids N+1 RPC calls and is safe on a free access node.
+  getLeaderboard: `
+import Yoldr from 0x8401ed4fc6788c8a
+import VaultPet from 0x8401ed4fc6788c8a
+import BadgeMinter from 0x8401ed4fc6788c8a
+
+access(all) struct LeaderEntry {
+  access(all) let addr: Address
+  access(all) let xp: UInt64
+  access(all) let principal: UFix64
+  access(all) let totalYieldEarned: UFix64
+  access(all) let streakCount: UInt64
+  access(all) let depositTimestamp: UFix64
+  access(all) let petType: String
+  access(all) let badgeCount: UInt64
+
+  init(
+    addr: Address, xp: UInt64, principal: UFix64,
+    totalYieldEarned: UFix64, streakCount: UInt64,
+    depositTimestamp: UFix64, petType: String, badgeCount: UInt64
+  ) {
+    self.addr = addr
+    self.xp = xp
+    self.principal = principal
+    self.totalYieldEarned = totalYieldEarned
+    self.streakCount = streakCount
+    self.depositTimestamp = depositTimestamp
+    self.petType = petType
+    self.badgeCount = badgeCount
+  }
+}
+
+access(all) fun main(): [LeaderEntry] {
+  let entries: [LeaderEntry] = []
+
+  for user in Yoldr.vaults.keys {
+    if let vault = Yoldr.vaults[user] {
+      // Skip zero-principal accounts (withdrawn)
+      if vault.principal == 0.0 { continue }
+
+      // Pet type — borrow the public VaultPet collection
+      var petType = "Griffin"
+      if let col = getAccount(user)
+          .capabilities.borrow<&VaultPet.Collection>(VaultPet.CollectionPublicPath) {
+        let ids = col.getIDs()
+        if ids.length > 0 {
+          if let pet = col.borrowVaultPet(ids[0]) {
+            petType = pet.petType
+          }
+        }
+      }
+
+      // Badge count — borrow the public BadgeMinter collection
+      var badgeCount: UInt64 = 0
+      if let bc = getAccount(user)
+          .capabilities.borrow<&BadgeMinter.Collection>(BadgeMinter.CollectionPublicPath) {
+        badgeCount = UInt64(bc.getLength())
+      }
+
+      entries.append(LeaderEntry(
+        addr: user,
+        xp: vault.xpPoints,
+        principal: vault.principal,
+        totalYieldEarned: vault.totalYieldEarned,
+        streakCount: vault.streakCount,
+        depositTimestamp: vault.depositTimestamp,
+        petType: petType,
+        badgeCount: badgeCount
+      ))
+    }
+  }
+
+  return entries
+}
+  `,
 };
 
 // Cadence transactions (inline)
 export const TRANSACTIONS = {
+  pingStreak: `
+import Yoldr from 0x8401ed4fc6788c8a
+
+transaction(user: Address) {
+  prepare(signer: auth(BorrowValue) &Account) {}
+
+  execute {
+    Yoldr.pingStreak(user: user)
+  }
+}
+`,
+
   deposit: `
 import FungibleToken from 0x9a0766d93b6608b7
 import FlowToken from 0x7e60df042a9c0868
