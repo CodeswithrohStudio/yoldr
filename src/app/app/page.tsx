@@ -63,6 +63,7 @@ export default function DashboardPage() {
   const [selectedPetType, setSelectedPetType] = useState("Griffin");
   const [isDepositing, setIsDepositing] = useState(false);
   const [depositError, setDepositError] = useState("");
+  const [liveYield, setLiveYield] = useState(0);
 
   // Daily feed state — stored in localStorage with date key
   const [fedToday, setFedToday] = useState(false);
@@ -142,8 +143,9 @@ export default function DashboardPage() {
           }))
         );
       }
-    } catch {
-      // silently fail — stale data stays
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      addToast({ message: `Vault sync failed: ${msg.slice(0, 80)}`, type: "warning" });
     } finally {
       setIsLoading(false);
     }
@@ -181,6 +183,25 @@ export default function DashboardPage() {
     const interval = setInterval(fetchData, 10_000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Client-side yield ticker — replicates contract's calculateAccruedYield locally so the
+  // number visibly ticks every second instead of only updating on each poll.
+  useEffect(() => {
+    if (!vault || vault.principal <= 0) {
+      setLiveYield(vault?.accruedYield ?? 0);
+      return;
+    }
+    const APY = 0.05;
+    const YEAR = 31_536_000;
+    const tick = () => {
+      const nowSec = Date.now() / 1000;
+      const elapsed = Math.max(0, nowSec - vault.lastHarvestTimestamp);
+      setLiveYield(vault.principal * (APY / YEAR) * elapsed + vault.yieldBalance);
+    };
+    tick(); // immediate first update
+    const id = setInterval(tick, 1_000);
+    return () => clearInterval(id);
+  }, [vault]);
 
   async function handleDeposit() {
     const amount = parseFloat(depositAmount);
@@ -222,7 +243,7 @@ export default function DashboardPage() {
 
   const yieldPct =
     vault && vault.principal > 0
-      ? Math.min(100, (vault.accruedYield / vault.principal) * 100)
+      ? Math.min(100, (liveYield / vault.principal) * 100)
       : 0;
 
   const activePosition = positions[0] ?? null;
@@ -372,7 +393,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-slate-400 text-xs mb-0.5">Accrued Yield</p>
                     <span className="font-orbitron font-bold text-yellow-400 text-lg">
-                      +<AnimatedNumber value={vault.accruedYield} decimals={6} />
+                      +{liveYield.toFixed(6)}
                       <span className="text-yellow-500/70 text-xs ml-1">FLOW</span>
                     </span>
                   </div>
@@ -389,7 +410,7 @@ export default function DashboardPage() {
                 <div>
                   <div className="flex justify-between text-xs text-slate-500 mb-1.5">
                     <span>Yield progress</span>
-                    <span className="text-yellow-400">{yieldPct.toFixed(3)}% of principal</span>
+                    <span className="text-yellow-400">{yieldPct.toFixed(4)}% of principal</span>
                   </div>
                   <div className="progress-bar">
                     <motion.div
