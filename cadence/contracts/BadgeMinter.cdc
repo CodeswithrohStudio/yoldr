@@ -26,6 +26,18 @@ access(all) contract BadgeMinter: NonFungibleToken {
             returnPct: Fix64,
             shieldType: String
         ): @BadgeMinter.NFT
+
+        // Mints an "opener badge" awarded when a shield is first activated.
+        // closeTimestamp is set to 0.0 as a sentinel — frontend detects this
+        // and renders the badge as an active/live badge rather than a closed one.
+        access(all) fun mintOpenBadge(
+            recipient: Address,
+            asset: String,
+            leverage: UFix64,
+            depositAmount: UFix64,
+            openTimestamp: UFix64,
+            shieldType: String
+        ): @BadgeMinter.NFT
     }
 
     // Shield Badge NFT
@@ -159,6 +171,37 @@ access(all) contract BadgeMinter: NonFungibleToken {
                 leverage: leverage,
                 returnPct: returnPct,
                 isRare: badge.isRare
+            )
+            return <-badge
+        }
+
+        // Awarded on shield activation. closeTimestamp == 0.0 marks it as an opener badge.
+        access(all) fun mintOpenBadge(
+            recipient: Address,
+            asset: String,
+            leverage: UFix64,
+            depositAmount: UFix64,
+            openTimestamp: UFix64,
+            shieldType: String
+        ): @BadgeMinter.NFT {
+            BadgeMinter.totalSupply = BadgeMinter.totalSupply + 1
+            let badge <- create NFT(
+                id: BadgeMinter.totalSupply,
+                asset: asset,
+                leverage: leverage,
+                depositAmount: depositAmount,
+                openTimestamp: openTimestamp,
+                closeTimestamp: 0.0,
+                returnPct: Fix64(0.0),
+                shieldType: shieldType
+            )
+            emit BadgeMinted(
+                id: badge.id,
+                owner: recipient,
+                asset: asset,
+                leverage: leverage,
+                returnPct: Fix64(0.0),
+                isRare: false
             )
             return <-badge
         }

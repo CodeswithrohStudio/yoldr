@@ -37,10 +37,12 @@ export interface BadgeState {
   id: number;
   asset: string;
   leverage: number;
+  depositAmount: number;
   returnPct: number;
   isRare: boolean;
   shieldType: string;
-  closeTimestamp: number;
+  openTimestamp: number;
+  closeTimestamp: number; // 0.0 means "opener badge" — shield is still active
 }
 
 export interface Toast {

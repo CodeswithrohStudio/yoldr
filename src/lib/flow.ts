@@ -167,19 +167,24 @@ access(all) struct BadgeInfo {
   access(all) let id: UInt64
   access(all) let asset: String
   access(all) let leverage: UFix64
+  access(all) let depositAmount: UFix64
   access(all) let returnPct: Fix64
   access(all) let isRare: Bool
   access(all) let shieldType: String
+  access(all) let openTimestamp: UFix64
   access(all) let closeTimestamp: UFix64
 
-  init(id: UInt64, asset: String, leverage: UFix64, returnPct: Fix64,
-       isRare: Bool, shieldType: String, closeTimestamp: UFix64) {
+  init(id: UInt64, asset: String, leverage: UFix64, depositAmount: UFix64,
+       returnPct: Fix64, isRare: Bool, shieldType: String,
+       openTimestamp: UFix64, closeTimestamp: UFix64) {
     self.id = id
     self.asset = asset
     self.leverage = leverage
+    self.depositAmount = depositAmount
     self.returnPct = returnPct
     self.isRare = isRare
     self.shieldType = shieldType
+    self.openTimestamp = openTimestamp
     self.closeTimestamp = closeTimestamp
   }
 }
@@ -190,7 +195,8 @@ access(all) fun main(user: Address): [BadgeInfo] {
     for id in collection.getIDs() {
       if let badge = collection.borrowBadge(id) {
         badges.append(BadgeInfo(id: badge.id, asset: badge.asset, leverage: badge.leverage,
-          returnPct: badge.returnPct, isRare: badge.isRare, shieldType: badge.shieldType,
+          depositAmount: badge.depositAmount, returnPct: badge.returnPct, isRare: badge.isRare,
+          shieldType: badge.shieldType, openTimestamp: badge.openTimestamp,
           closeTimestamp: badge.closeTimestamp))
       }
     }
@@ -363,6 +369,7 @@ transaction(amount: UFix64) {
 import ShieldPosition from 0x8401ed4fc6788c8a
 import Yoldr from 0x8401ed4fc6788c8a
 import VaultPet from 0x8401ed4fc6788c8a
+import BadgeMinter from 0x8401ed4fc6788c8a
 
 transaction(shieldType: String) {
   let userAddress: Address
@@ -378,6 +385,14 @@ transaction(shieldType: String) {
       signer.capabilities.publish(cap, at: ShieldPosition.CollectionPublicPath)
     }
 
+    // Setup BadgeMinter collection if not already present
+    if signer.storage.borrow<&BadgeMinter.Collection>(from: BadgeMinter.CollectionStoragePath) == nil {
+      let badgeCollection <- BadgeMinter.createEmptyCollection(nftType: Type<@BadgeMinter.NFT>())
+      signer.storage.save(<-badgeCollection, to: BadgeMinter.CollectionStoragePath)
+      let badgeCap = signer.capabilities.storage.issue<&BadgeMinter.Collection>(BadgeMinter.CollectionStoragePath)
+      signer.capabilities.publish(badgeCap, at: BadgeMinter.CollectionPublicPath)
+    }
+
     // All storage access MUST happen in prepare — execute block cannot call storage.borrow
     let yieldAmount = Yoldr.harvestYield(user: self.userAddress)
     let marginAmount = yieldAmount > 0.0 ? yieldAmount : 1.0
@@ -386,7 +401,12 @@ transaction(shieldType: String) {
       .capabilities.borrow<&{ShieldPosition.MinterPublic}>(/public/shieldPositionMinter)
       ?? panic("Could not borrow ShieldPosition minter — run setupMinters.cdc first")
 
+    let config = ShieldPosition.SHIELDS[shieldType]
+      ?? panic("Unknown shield type")
+
     let position <- minterRef.openShield(user: self.userAddress, shieldType: shieldType, depositAmount: marginAmount)
+
+    let openTimestamp = getCurrentBlock().timestamp
 
     if let petCollection = signer.storage.borrow<&VaultPet.Collection>(from: VaultPet.CollectionStoragePath) {
       let petIDs = petCollection.getIDs()
@@ -401,6 +421,24 @@ transaction(shieldType: String) {
     let collectionRef = signer.storage.borrow<&ShieldPosition.Collection>(from: ShieldPosition.CollectionStoragePath)
       ?? panic("Could not borrow shield collection")
     collectionRef.deposit(token: <-position)
+
+    // Mint "Shield Activated" opener badge NFT (closeTimestamp = 0.0 marks it as active)
+    let badgeMinterRef = getAccount(0x8401ed4fc6788c8a)
+      .capabilities.borrow<&{BadgeMinter.MinterPublic}>(/public/badgeMinter)
+      ?? panic("Could not borrow BadgeMinter capability")
+
+    let badge <- badgeMinterRef.mintOpenBadge(
+      recipient: self.userAddress,
+      asset: config.asset,
+      leverage: config.leverage,
+      depositAmount: marginAmount,
+      openTimestamp: openTimestamp,
+      shieldType: shieldType
+    )
+
+    let badgeCollectionRef = signer.storage.borrow<&BadgeMinter.Collection>(from: BadgeMinter.CollectionStoragePath)
+      ?? panic("Could not borrow badge collection")
+    badgeCollectionRef.deposit(token: <-badge)
   }
 
   execute {}

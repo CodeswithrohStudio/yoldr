@@ -7,7 +7,7 @@ import { useYoldrStore, BadgeState } from "@/store/useYoldrStore";
 
 type ShieldKey = keyof typeof SHIELDS;
 
-function formatCloseDate(timestamp: number): string {
+function formatDate(timestamp: number): string {
   if (!timestamp) return "—";
   const date = new Date(timestamp * 1000);
   return date.toLocaleDateString("en-US", {
@@ -15,6 +15,78 @@ function formatCloseDate(timestamp: number): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function OpenerBadgeCard({ badge, index }: { badge: BadgeState; index: number }) {
+  const shieldDef = SHIELDS[badge.shieldType as ShieldKey];
+  const assetEmoji = ASSET_EMOJI[badge.asset] ?? badge.asset;
+  const color = shieldDef?.color ?? "from-amber-500 to-yellow-400";
+  const shieldName = shieldDef?.name ?? badge.shieldType;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.85, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.45, delay: index * 0.08, ease: "easeOut" }}
+      className="relative rounded-2xl overflow-hidden"
+      style={{
+        background: "linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(251,191,36,0.06) 100%)",
+        border: "1px solid rgba(245,158,11,0.35)",
+        boxShadow: "0 0 24px rgba(245,158,11,0.12)",
+      }}
+    >
+      {/* Gold shimmer top strip */}
+      <div className={`h-1 w-full bg-gradient-to-r ${color}`} />
+
+      {/* LIVE pill */}
+      <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-amber-500/20 border border-amber-500/40 rounded-full px-2.5 py-0.5">
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
+        </span>
+        <span className="text-[10px] font-bold text-amber-400 font-orbitron tracking-wider">LIVE</span>
+      </div>
+
+      <div className="p-4 flex flex-col gap-3">
+        {/* Icon */}
+        <div
+          className="w-14 h-14 rounded-2xl flex items-center justify-center"
+          style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.3) 0%, rgba(251,191,36,0.15) 100%)" }}
+        >
+          <span className="text-3xl" role="img" aria-label={badge.asset}>{assetEmoji}</span>
+        </div>
+
+        {/* Label + name */}
+        <div>
+          <p className="text-[10px] text-amber-500/70 uppercase tracking-widest mb-0.5">Shield Activated</p>
+          <p className="font-orbitron text-sm font-bold text-white leading-tight">{shieldName}</p>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-white/5 p-2">
+            <p className="text-[10px] text-slate-500 mb-0.5">Leverage</p>
+            <p className="text-sm font-bold font-orbitron text-amber-400">{badge.leverage}x</p>
+          </div>
+          <div className="rounded-xl bg-white/5 p-2">
+            <p className="text-[10px] text-slate-500 mb-0.5">Margin</p>
+            <p className="text-sm font-bold font-orbitron text-amber-400">
+              {badge.depositAmount.toFixed(4)}
+            </p>
+          </div>
+        </div>
+
+        {/* Activated date */}
+        <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" className="text-amber-500/60 shrink-0">
+            <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          <p className="text-[10px] text-slate-500">Activated {formatDate(badge.openTimestamp)}</p>
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 function BadgeCard({ badge, index }: { badge: BadgeState; index: number }) {
@@ -82,7 +154,7 @@ function BadgeCard({ badge, index }: { badge: BadgeState; index: number }) {
             <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8" />
             <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
-          <p className="text-[10px] text-slate-500">{formatCloseDate(badge.closeTimestamp)}</p>
+          <p className="text-[10px] text-slate-500">{formatDate(badge.closeTimestamp)}</p>
         </div>
       </div>
     </motion.div>
@@ -132,17 +204,21 @@ export default function BadgesPage() {
           id: string | number;
           asset: string;
           leverage: string | number;
+          depositAmount: string | number;
           returnPct: string | number;
           isRare: boolean;
           shieldType: string;
+          openTimestamp: string | number;
           closeTimestamp: string | number;
         }) => ({
           id: Number(b.id),
           asset: b.asset,
           leverage: Number(b.leverage),
+          depositAmount: Number(b.depositAmount),
           returnPct: Number(b.returnPct),
           isRare: b.isRare,
           shieldType: b.shieldType,
+          openTimestamp: Number(b.openTimestamp),
           closeTimestamp: Number(b.closeTimestamp),
         }));
 
@@ -160,8 +236,9 @@ export default function BadgesPage() {
 
   const totalBadges = badges.length;
   const rareCount = badges.filter((b) => b.isRare).length;
+  const closedBadges = badges.filter((b) => b.closeTimestamp !== 0);
   const bestReturn =
-    badges.length > 0 ? Math.max(...badges.map((b) => b.returnPct)) : null;
+    closedBadges.length > 0 ? Math.max(...closedBadges.map((b) => b.returnPct)) : null;
 
   const lockedPlaceholderCount = Math.max(0, 6 - totalBadges);
 
@@ -184,7 +261,7 @@ export default function BadgesPage() {
           )}
         </div>
         <p className="text-slate-400 text-sm mt-1">
-          Earned by closing Shield positions on-chain
+          Minted on-chain when you activate or close a Shield
         </p>
       </div>
 
@@ -266,9 +343,13 @@ export default function BadgesPage() {
                 <div className="mt-5">
                   <p className="text-xs text-slate-500 uppercase tracking-widest mb-3 font-medium">Earned</p>
                   <div className="grid grid-cols-2 gap-4">
-                    {badges.map((badge, i) => (
-                      <BadgeCard key={badge.id} badge={badge} index={i} />
-                    ))}
+                    {badges.map((badge, i) =>
+                      badge.closeTimestamp === 0 ? (
+                        <OpenerBadgeCard key={badge.id} badge={badge} index={i} />
+                      ) : (
+                        <BadgeCard key={badge.id} badge={badge} index={i} />
+                      )
+                    )}
                   </div>
                 </div>
               )}
