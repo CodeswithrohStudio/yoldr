@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { fcl, SCRIPTS, TRANSACTIONS, PET_EMOJI } from "@/lib/flow";
+import { fetchLivePrices } from "@/lib/prices";
 import { useYoldrStore } from "@/store/useYoldrStore";
 import VaultPetDisplay from "@/components/VaultPetDisplay";
 import StreakBar from "@/components/StreakBar";
@@ -125,23 +126,37 @@ export default function DashboardPage() {
       }
 
       if (Array.isArray(positionsData)) {
-        setPositions(
-          positionsData.map((p: {
-            id: string; shieldType: string; asset: string; leverage: string;
-            depositAmount: string; openTimestamp: string; openPrice: string;
-            currentPrice: string; returnPct: string;
-          }) => ({
-            id: parseInt(p.id, 10),
-            shieldType: p.shieldType,
-            asset: p.asset,
-            leverage: parseFloat(p.leverage),
-            depositAmount: parseFloat(p.depositAmount),
-            openTimestamp: parseFloat(p.openTimestamp),
-            openPrice: parseFloat(p.openPrice),
-            currentPrice: parseFloat(p.currentPrice),
-            returnPct: parseFloat(p.returnPct),
-          }))
-        );
+        // Base positions from chain (openPrice is correct; currentPrice/returnPct
+        // come from the stale MockPriceFeed so we override them below).
+        const base = positionsData.map((p: {
+          id: string; shieldType: string; asset: string; leverage: string;
+          depositAmount: string; openTimestamp: string; openPrice: string;
+          currentPrice: string; returnPct: string;
+        }) => ({
+          id: parseInt(p.id, 10),
+          shieldType: p.shieldType,
+          asset: p.asset,
+          leverage: parseFloat(p.leverage),
+          depositAmount: parseFloat(p.depositAmount),
+          openTimestamp: parseFloat(p.openTimestamp),
+          openPrice: parseFloat(p.openPrice),
+          currentPrice: parseFloat(p.currentPrice),
+          returnPct: parseFloat(p.returnPct),
+        }));
+
+        // Overlay live prices from external APIs
+        const uniqueAssets = Array.from(new Set(base.map((p) => p.asset)));
+        try {
+          const livePrices = await fetchLivePrices(uniqueAssets);
+          setPositions(base.map((p) => {
+            const livePrice = livePrices[p.asset];
+            if (!livePrice || p.openPrice === 0) return p;
+            const returnPct = ((livePrice - p.openPrice) / p.openPrice) * p.leverage;
+            return { ...p, currentPrice: livePrice, returnPct };
+          }));
+        } catch {
+          setPositions(base); // fall back to on-chain prices if API is down
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -183,6 +198,25 @@ export default function DashboardPage() {
     const interval = setInterval(fetchData, 10_000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // Refresh live prices every 30 seconds without re-polling the whole chain
+  useEffect(() => {
+    const refresh = async () => {
+      if (!positions.length) return;
+      const uniqueAssets = Array.from(new Set(positions.map((p) => p.asset)));
+      try {
+        const livePrices = await fetchLivePrices(uniqueAssets);
+        setPositions(positions.map((p) => {
+          const livePrice = livePrices[p.asset];
+          if (!livePrice || p.openPrice === 0) return p;
+          const returnPct = ((livePrice - p.openPrice) / p.openPrice) * p.leverage;
+          return { ...p, currentPrice: livePrice, returnPct };
+        }));
+      } catch { /* keep existing prices */ }
+    };
+    const id = setInterval(refresh, 30_000);
+    return () => clearInterval(id);
+  }, [positions, setPositions]);
 
   // Client-side yield ticker — replicates contract's calculateAccruedYield locally so the
   // number visibly ticks every second instead of only updating on each poll.
