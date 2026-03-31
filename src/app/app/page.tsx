@@ -59,6 +59,24 @@ function formatStoryAge(days: number) {
   return `${Math.floor(days / 30)} months into the quest`;
 }
 
+function getShieldBadge(shieldType: string) {
+  const compact = shieldType.replace(/_/g, " ").trim();
+  const initials = compact
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const tone = shieldType.includes("GOLD")
+    ? "border-amber-400/30 bg-amber-500/12 text-amber-200"
+    : shieldType.includes("ETHER")
+      ? "border-cyan-400/25 bg-cyan-500/10 text-cyan-200"
+      : "border-slate-300/15 bg-slate-200/5 text-slate-100";
+
+  return { initials, tone };
+}
+
 function Spinner() {
   return (
     <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-yellow-400 animate-spin" />
@@ -537,7 +555,7 @@ export default function DashboardPage() {
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.18 }}
-                className="relative overflow-hidden rounded-[28px] p-5 mb-4 border border-amber-400/15"
+                className="relative overflow-hidden rounded-[28px] p-5 mb-4 border border-amber-400/15 lg:hidden"
                 style={{
                   background: "radial-gradient(circle at top left, rgba(245,158,11,0.16), transparent 38%), linear-gradient(180deg, rgba(30,41,59,0.92), rgba(15,23,42,0.95))",
                   boxShadow: "0 18px 50px rgba(0,0,0,0.22)",
@@ -568,11 +586,11 @@ export default function DashboardPage() {
             >
               {vault ? (
                 <>
-                  <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between lg:flex-col lg:items-start">
                     <div className="min-w-0">
                       <p className="text-slate-400 text-xs mb-1">Your Principal</p>
                       <div className="flex min-w-0 flex-wrap items-end gap-x-2 gap-y-1">
-                        <span className="min-w-0 break-all font-orbitron font-bold text-3xl text-green-400 leading-none">
+                        <span className="min-w-0 font-orbitron font-bold text-[2.5rem] text-green-400 leading-[0.9] lg:text-[2.2rem] xl:text-[2.5rem]">
                           <AnimatedNumber value={vault.principal} decimals={4} />
                         </span>
                         <span className="text-green-500 text-sm">FLOW</span>
@@ -583,17 +601,17 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                  <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                     <div className="min-w-0 rounded-2xl border border-yellow-500/10 bg-yellow-500/5 px-4 py-3">
                       <p className="text-slate-400 text-xs mb-0.5">Accrued Yield</p>
-                      <span className="block min-w-0 break-all font-orbitron font-bold text-yellow-400 text-lg leading-tight">
+                      <span className="block min-w-0 font-orbitron font-bold text-yellow-400 text-lg leading-tight">
                         +{liveYield.toFixed(6)}
                         <span className="text-yellow-500/70 text-xs ml-1">FLOW</span>
                       </span>
                     </div>
                     <div className="min-w-0 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 sm:text-right">
                       <p className="text-slate-400 text-xs mb-0.5">Total Earned</p>
-                      <span className="block min-w-0 break-all text-slate-300 text-sm font-orbitron leading-tight">
+                      <span className="block min-w-0 text-slate-300 text-sm font-orbitron leading-tight">
                         <AnimatedNumber value={vault.totalYieldEarned} decimals={4} />
                         <span className="text-slate-500 text-xs ml-1">FLOW</span>
                       </span>
@@ -659,7 +677,7 @@ export default function DashboardPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 lg:hidden"
               >
                 <button
                   onClick={() => setShowDepositModal(true)}
@@ -680,6 +698,27 @@ export default function DashboardPage() {
 
           {/* ══ RIGHT MAIN — charts, analytics, positions ══ */}
           <div className="flex-1 min-w-0 flex flex-col overflow-y-auto scrollbar-hide px-4 lg:px-7 pt-4 pb-8">
+            {vault && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.22 }}
+                className="hidden lg:flex items-center justify-end gap-3 mb-4"
+              >
+                <button
+                  onClick={() => setShowDepositModal(true)}
+                  className="min-w-[170px] py-3 rounded-xl text-sm font-bold text-yellow-400 border border-yellow-500/30 bg-yellow-500/8 hover:bg-yellow-500/15 transition-all cursor-pointer"
+                >
+                  + Add FLOW
+                </button>
+                <button
+                  onClick={() => router.push("/app/shields")}
+                  className="min-w-[190px] py-3 rounded-xl text-sm font-bold text-purple-300 border border-purple-500/30 bg-purple-500/8 hover:bg-purple-500/15 transition-all cursor-pointer"
+                >
+                  Pick a Shield →
+                </button>
+              </motion.div>
+            )}
 
             {/* Analytics & Charts */}
             {vault && vault.principal > 0 && (
@@ -695,10 +734,11 @@ export default function DashboardPage() {
                   </p>
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
                     <div className="max-w-2xl">
-                      <h2 className="text-xl lg:text-2xl text-white font-semibold leading-tight text-balance">
-                        A dashboard that reads like the state of your expedition, not a pile of stats.
+                      <h2 className="text-xl lg:text-lg text-white font-semibold leading-tight text-balance">
+                        <span className="lg:hidden">A dashboard that reads like the state of your expedition, not a pile of stats.</span>
+                        <span className="hidden lg:inline">Vault overview</span>
                       </h2>
-                      <p className="mt-2 text-sm leading-6 text-slate-400">
+                      <p className="mt-2 text-sm leading-6 text-slate-400 lg:hidden">
                         Track the calm parts, the tension, and the upside in sequence: vault growth first, shield pressure next, and open positions last.
                       </p>
                     </div>
@@ -816,7 +856,12 @@ export default function DashboardPage() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex min-w-0 items-center gap-2">
-                        <span className="text-lg">{PET_EMOJI[pos.shieldType] ?? "🛡️"}</span>
+                        <span className="text-lg lg:hidden">{PET_EMOJI[pos.shieldType] ?? "🛡️"}</span>
+                        <span
+                          className={`hidden lg:inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-[12px] font-orbitron font-bold tracking-[0.2em] ${getShieldBadge(pos.shieldType).tone}`}
+                        >
+                          {getShieldBadge(pos.shieldType).initials}
+                        </span>
                         <div className="min-w-0">
                           <p className="truncate text-white font-bold text-sm">{pos.shieldType.replace(/_/g, " ")}</p>
                           <p className="truncate text-slate-500 text-xs">{pos.asset} · {pos.leverage}x</p>
