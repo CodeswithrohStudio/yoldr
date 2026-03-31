@@ -65,6 +65,7 @@ export default function DashboardPage() {
   const [isDepositing, setIsDepositing] = useState(false);
   const [depositError, setDepositError] = useState("");
   const [liveYield, setLiveYield] = useState(0);
+  const [flowBalance, setFlowBalance] = useState<number | null>(null);
 
   // Daily feed state — stored in localStorage with date key
   const [fedToday, setFedToday] = useState(false);
@@ -90,11 +91,13 @@ export default function DashboardPage() {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const addrArgs = (arg: any, t: any) => [arg(user.addr, t.Address)];
-      const [vaultData, petData, positionsData] = await Promise.all([
+      const [vaultData, petData, positionsData, balanceData] = await Promise.all([
         fcl.query({ cadence: SCRIPTS.getVaultState, args: addrArgs }),
         fcl.query({ cadence: SCRIPTS.getPet, args: addrArgs }),
         fcl.query({ cadence: SCRIPTS.getPositions, args: addrArgs }),
+        fcl.query({ cadence: SCRIPTS.getFlowBalance, args: addrArgs }),
       ]);
+      if (balanceData !== undefined) setFlowBalance(parseFloat(balanceData));
 
       if (vaultData) {
         setVault({
@@ -304,9 +307,15 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-2">
           {user?.addr && (
-            <span className="text-xs text-slate-400 glass px-3 py-1.5 rounded-full border border-white/8 font-mono">
-              {truncateAddr(user.addr)}
-            </span>
+            <a
+              href={`https://testnet.flowscan.io/account/${user.addr}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-slate-400 glass px-3 py-1.5 rounded-full border border-white/8 font-mono hover:text-white hover:border-white/20 transition-colors"
+              title="View on FlowScan"
+            >
+              {truncateAddr(user.addr)} ↗
+            </a>
           )}
           <button
             onClick={handleSignOut}
@@ -479,6 +488,28 @@ export default function DashboardPage() {
               </div>
             )}
           </motion.div>
+
+          {/* ── FLOW Wallet Balance (Flow native FungibleToken) ── */}
+          {flowBalance !== null && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="glass rounded-2xl px-4 py-3 mb-4 flex items-center justify-between"
+              style={{ border: "1px solid rgba(99,102,241,0.2)" }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-base">◎</span>
+                <span className="text-xs text-slate-400">Wallet Balance</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-orbitron font-bold text-indigo-300 text-sm">
+                  {flowBalance.toFixed(4)}
+                </span>
+                <span className="text-indigo-400/60 text-xs">FLOW</span>
+              </div>
+            </motion.div>
+          )}
 
           {/* ── If vault exists: deposit more / shields ── */}
           {vault && (

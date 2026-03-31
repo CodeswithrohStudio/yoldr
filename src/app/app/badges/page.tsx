@@ -17,7 +17,9 @@ function formatDate(timestamp: number): string {
   });
 }
 
-function OpenerBadgeCard({ badge, index }: { badge: BadgeState; index: number }) {
+const FLOWSCAN_ACCOUNT = (addr: string) => `https://testnet.flowscan.io/account/${addr}`;
+
+function OpenerBadgeCard({ badge, index, userAddr }: { badge: BadgeState; index: number; userAddr?: string }) {
   const shieldDef = SHIELDS[badge.shieldType as ShieldKey];
   const assetEmoji = ASSET_EMOJI[badge.asset] ?? badge.asset;
   const color = shieldDef?.color ?? "from-amber-500 to-yellow-400";
@@ -76,20 +78,33 @@ function OpenerBadgeCard({ badge, index }: { badge: BadgeState; index: number })
           </div>
         </div>
 
-        {/* Activated date */}
-        <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" className="text-amber-500/60 shrink-0">
-            <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8" />
-            <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-          <p className="text-[10px] text-slate-500">Activated {formatDate(badge.openTimestamp)}</p>
+        {/* Activated date + FlowScan link */}
+        <div className="flex items-center justify-between pt-1 border-t border-white/5">
+          <div className="flex items-center gap-1.5">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" className="text-amber-500/60 shrink-0">
+              <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+            <p className="text-[10px] text-slate-500">Activated {formatDate(badge.openTimestamp)}</p>
+          </div>
+          {userAddr && (
+            <a
+              href={FLOWSCAN_ACCOUNT(userAddr)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] text-indigo-400/70 hover:text-indigo-300 transition-colors"
+              title="View on FlowScan"
+            >
+              ⛓ on-chain ↗
+            </a>
+          )}
         </div>
       </div>
     </motion.div>
   );
 }
 
-function BadgeCard({ badge, index }: { badge: BadgeState; index: number }) {
+function BadgeCard({ badge, index, userAddr }: { badge: BadgeState; index: number; userAddr?: string }) {
   const shieldDef = SHIELDS[badge.shieldType as ShieldKey];
   const assetEmoji = ASSET_EMOJI[badge.asset] ?? badge.asset;
   const isPositive = badge.returnPct >= 0;
@@ -148,13 +163,25 @@ function BadgeCard({ badge, index }: { badge: BadgeState; index: number }) {
           </div>
         </div>
 
-        {/* Close date */}
-        <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" className="text-slate-500 shrink-0">
-            <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8" />
-            <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-          <p className="text-[10px] text-slate-500">{formatDate(badge.closeTimestamp)}</p>
+        {/* Close date + FlowScan link */}
+        <div className="flex items-center justify-between pt-1 border-t border-white/5">
+          <div className="flex items-center gap-1.5">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" className="text-slate-500 shrink-0">
+              <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+            <p className="text-[10px] text-slate-500">{formatDate(badge.closeTimestamp)}</p>
+          </div>
+          {userAddr && (
+            <a
+              href={FLOWSCAN_ACCOUNT(userAddr)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] text-indigo-400/70 hover:text-indigo-300 transition-colors"
+            >
+              ⛓ on-chain ↗
+            </a>
+          )}
         </div>
       </div>
     </motion.div>
@@ -345,9 +372,9 @@ export default function BadgesPage() {
                   <div className="grid grid-cols-2 gap-4">
                     {badges.map((badge, i) =>
                       badge.closeTimestamp === 0 ? (
-                        <OpenerBadgeCard key={badge.id} badge={badge} index={i} />
+                        <OpenerBadgeCard key={badge.id} badge={badge} index={i} userAddr={user?.addr} />
                       ) : (
-                        <BadgeCard key={badge.id} badge={badge} index={i} />
+                        <BadgeCard key={badge.id} badge={badge} index={i} userAddr={user?.addr} />
                       )
                     )}
                   </div>

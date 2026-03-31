@@ -52,7 +52,10 @@ transaction(shieldType: String) {
             if petIDs.length > 0 {
                 if let pet = petCollection.borrowVaultPet(petIDs[0]) {
                     pet.equipShield(shieldType: shieldType)
-                    pet.addXP(amount: 50)
+                    // VRF Lucky Roll — Flow native randomness, no oracle needed
+                    let rand = revertibleRandom<UInt64>() % 3
+                    let xpBonus: UInt64 = rand == 0 ? 50 : (rand == 1 ? 100 : 150)
+                    pet.addXP(amount: xpBonus)
                 }
             }
         }

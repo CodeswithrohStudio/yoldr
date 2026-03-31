@@ -283,6 +283,20 @@ access(all) fun main(): [LeaderEntry] {
   return entries
 }
   `,
+
+  // Flow-native FungibleToken balance — reads directly from FlowToken vault, no oracle
+  getFlowBalance: `
+import FungibleToken from 0x9a0766d93b6608b7
+import FlowToken from 0x7e60df042a9c0868
+
+access(all) fun main(user: Address): UFix64 {
+  if let vaultRef = getAccount(user)
+      .capabilities.borrow<&{FungibleToken.Balance}>(/public/flowTokenBalance) {
+    return vaultRef.balance
+  }
+  return 0.0
+}
+  `,
 };
 
 // Cadence transactions (inline)
@@ -413,7 +427,11 @@ transaction(shieldType: String) {
       if petIDs.length > 0 {
         if let pet = petCollection.borrowVaultPet(petIDs[0]) {
           pet.equipShield(shieldType: shieldType)
-          pet.addXP(amount: 50)
+          // VRF Lucky Roll — Flow native randomness, no oracle needed
+          // revertibleRandom() is built into Cadence 1.0, seeded by the block VRF beacon
+          let rand = revertibleRandom<UInt64>() % 3
+          let xpBonus: UInt64 = rand == 0 ? 50 : (rand == 1 ? 100 : 150)
+          pet.addXP(amount: xpBonus)
         }
       }
     }

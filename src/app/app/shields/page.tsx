@@ -3,21 +3,32 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { fcl, TRANSACTIONS, SHIELDS, PET_EMOJI, ASSET_EMOJI } from "@/lib/flow";
+import { fcl, TRANSACTIONS, SCRIPTS, SHIELDS, PET_EMOJI, ASSET_EMOJI } from "@/lib/flow";
 import { useYoldrStore } from "@/store/useYoldrStore";
 
 type ShieldKey = keyof typeof SHIELDS;
 
+interface LuckyRoll {
+  xp: number;
+  tier: "COMMON" | "RARE" | "LEGENDARY";
+  shieldName: string;
+  txId: string;
+}
+
+const FLOWSCAN_TX = (txId: string) => `https://testnet.flowscan.io/transaction/${txId}`;
+
 export default function ShieldsPage() {
   const router = useRouter();
-  const { addToast } = useYoldrStore();
+  const { addToast, pet, user } = useYoldrStore();
   const [expandedKey, setExpandedKey] = useState<ShieldKey | null>(null);
   const [activatingKey, setActivatingKey] = useState<ShieldKey | null>(null);
+  const [luckyRoll, setLuckyRoll] = useState<LuckyRoll | null>(null);
 
   const shieldEntries = Object.entries(SHIELDS) as [ShieldKey, (typeof SHIELDS)[ShieldKey]][];
 
   async function openShield(shieldKey: ShieldKey) {
     setActivatingKey(shieldKey);
+    const preXP = pet?.xp ?? 0;
     try {
       const txId = await fcl.mutate({
         cadence: TRANSACTIONS.openShield,
@@ -26,12 +37,18 @@ export default function ShieldsPage() {
         limit: 999,
       });
       await fcl.tx(txId).onceSealed();
-      addToast({
-        message: `${SHIELDS[shieldKey].name} Shield activated! Your yield is now deployed.`,
-        type: "success",
-      });
+
+      // Fetch updated pet XP to compute the VRF lucky roll result
+      let xpGained = 50;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const newPet = await fcl.query({ cadence: SCRIPTS.getPet, args: (arg: any, t: any) => [arg(user?.addr, t.Address)] });
+        if (newPet) xpGained = Math.max(50, parseInt(newPet.xp, 10) - preXP);
+      } catch { /* use default */ }
+
+      const tier: LuckyRoll["tier"] = xpGained >= 150 ? "LEGENDARY" : xpGained >= 100 ? "RARE" : "COMMON";
+      setLuckyRoll({ xp: xpGained, tier, shieldName: SHIELDS[shieldKey].name, txId: String(txId) });
       setExpandedKey(null);
-      router.back();
     } catch (err) {
       addToast({
         message: (err instanceof Error ? err.message : null) ?? "Transaction failed. Please try again.",
@@ -54,6 +71,96 @@ export default function ShieldsPage() {
 
   return (
     <div className="page-container bg-[#0F172A] min-h-dvh">
+      {/* ── VRF Lucky Roll overlay ── */}
+      <AnimatePresence>
+        {luckyRoll && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-6"
+          >
+            <motion.div
+              initial={{ scale: 0.7, y: 40 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18 }}
+              className="w-full max-w-sm rounded-3xl border border-white/10 bg-[#0F172A] p-7 flex flex-col items-center gap-5 text-center"
+              style={{ boxShadow: "0 0 60px rgba(245,158,11,0.2)" }}
+            >
+              {/* Dice */}
+              <motion.div
+                animate={{ rotate: [0, -15, 15, -10, 10, 0], scale: [1, 1.15, 1] }}
+                transition={{ duration: 0.7, ease: "easeOut" }}
+                className="text-6xl select-none"
+              >
+                🎲
+              </motion.div>
+
+              {/* Flow VRF label */}
+              <div className="flex items-center gap-2 bg-purple-500/15 border border-purple-500/30 rounded-full px-3 py-1">
+                <span className="text-xs text-purple-300 font-medium">◎ Flow Native VRF</span>
+              </div>
+
+              <div>
+                <p className="text-slate-400 text-sm mb-1">Shield activated · Lucky Roll result</p>
+                <p className="font-orbitron text-white text-lg font-bold">{luckyRoll.shieldName}</p>
+              </div>
+
+              {/* XP result */}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.3, type: "spring", stiffness: 300 }}
+                className="flex flex-col items-center gap-1"
+              >
+                <span
+                  className={`font-orbitron text-5xl font-bold ${
+                    luckyRoll.tier === "LEGENDARY" ? "text-yellow-400" :
+                    luckyRoll.tier === "RARE" ? "text-purple-400" : "text-green-400"
+                  }`}
+                >
+                  +{luckyRoll.xp} XP
+                </span>
+                <span
+                  className={`text-xs font-bold px-3 py-0.5 rounded-full font-orbitron tracking-widest ${
+                    luckyRoll.tier === "LEGENDARY"
+                      ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/40"
+                      : luckyRoll.tier === "RARE"
+                      ? "bg-purple-500/20 text-purple-400 border border-purple-500/40"
+                      : "bg-green-500/20 text-green-400 border border-green-500/30"
+                  }`}
+                >
+                  {luckyRoll.tier === "LEGENDARY" ? "🔥 LEGENDARY" : luckyRoll.tier === "RARE" ? "✨ RARE" : "COMMON"}
+                </span>
+              </motion.div>
+
+              <p className="text-slate-500 text-xs leading-relaxed max-w-xs">
+                XP bonus was randomly determined on-chain using Flow&apos;s block VRF beacon — provably fair, no oracle.
+              </p>
+
+              {/* FlowScan link */}
+              <a
+                href={FLOWSCAN_TX(luckyRoll.txId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-500 hover:text-slate-300 underline underline-offset-2 transition-colors"
+              >
+                View transaction on FlowScan ↗
+              </a>
+
+              <button
+                onClick={() => { setLuckyRoll(null); router.back(); }}
+                className="w-full py-3.5 rounded-xl font-orbitron font-bold text-sm text-black transition-all hover:scale-[1.02] active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)" }}
+              >
+                Continue →
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-12 pb-6 sticky top-0 z-20 bg-[#0F172A]/95 backdrop-blur-md border-b border-white/5">
         <button
