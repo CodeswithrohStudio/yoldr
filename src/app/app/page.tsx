@@ -358,12 +358,12 @@ export default function DashboardPage() {
   [positions]);
 
   return (
-    <div className="min-h-screen bg-[#0F172A] px-4 lg:px-8 xl:px-12 pt-4 pb-6">
+    <div className="bg-[#0F172A] min-h-screen lg:h-screen lg:overflow-hidden lg:flex lg:flex-col px-4 lg:px-8 xl:px-12 pt-4">
       {/* ── Storytelling deposit loading screen ── */}
       <DepositLoadingScreen show={isDepositing} petType={selectedPetType} amount={depositAmount} />
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3 shrink-0">
         <motion.h1
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
@@ -398,7 +398,7 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-5"
+          className="mb-3 shrink-0"
         >
           <StreakBar streak={vault.streakCount} xp={vault.xpPoints} level={Math.floor(vault.xpPoints / 100) + 1} />
         </motion.div>
@@ -413,18 +413,18 @@ export default function DashboardPage() {
       )}
 
       {!isLoading && (
-        /* ── 2-col dashboard on lg+, single col on mobile ── */
-        <div className="flex flex-col lg:flex-row lg:gap-6 lg:items-start">
+        /* ── 2-col dashboard on lg+: both columns fill and scroll independently ── */
+        <div className="flex flex-col lg:flex-row lg:gap-6 lg:flex-1 lg:min-h-0 pb-6">
 
           {/* ══ LEFT COLUMN — pet, vault, actions ══ */}
-          <div className="lg:w-[340px] lg:shrink-0 flex flex-col">
+          <div className="lg:w-[300px] xl:w-[320px] lg:shrink-0 flex flex-col lg:overflow-y-auto lg:pb-4 scrollbar-hide">
 
             {/* Pet display */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.15 }}
-              className="flex justify-center mb-5"
+              className="flex justify-center mb-3"
             >
               {pet ? (
                 <div className="relative">
@@ -592,7 +592,7 @@ export default function DashboardPage() {
           {/* ── end LEFT COLUMN ── */}
 
           {/* ══ RIGHT COLUMN — charts, analytics, positions ══ */}
-          <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 flex flex-col min-w-0 lg:overflow-y-auto lg:pb-4 scrollbar-hide">
 
             {/* Analytics & Charts */}
             {vault && vault.principal > 0 && (
@@ -602,7 +602,7 @@ export default function DashboardPage() {
                 transition={{ delay: 0.25 }}
                 className="mb-4"
               >
-                <p className="text-[10px] text-slate-600 font-medium tracking-widest uppercase mb-3 px-1">
+                <p className="text-[11px] text-slate-500 font-semibold tracking-widest uppercase mb-3 px-1">
                   Analytics
                 </p>
 
@@ -617,7 +617,7 @@ export default function DashboardPage() {
                       5% APY
                     </span>
                   </div>
-                  <div className="h-[130px] lg:h-[200px]">
+                  <div className="h-[130px] lg:h-[180px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                         <defs>
@@ -660,15 +660,15 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   <div className="glass rounded-xl p-3 text-center border border-white/8">
                     <p className="text-[10px] text-slate-500 mb-0.5">APY</p>
-                    <p className="font-orbitron font-bold text-amber-400 text-sm lg:text-base">5.00%</p>
+                    <p className="font-orbitron font-bold text-amber-400 text-sm">5.00%</p>
                   </div>
                   <div className="glass rounded-xl p-3 text-center border border-white/8">
                     <p className="text-[10px] text-slate-500 mb-0.5">Days Active</p>
-                    <p className="font-orbitron font-bold text-white text-sm lg:text-base">{daysSinceHarvest}d</p>
+                    <p className="font-orbitron font-bold text-white text-sm">{daysSinceHarvest}d</p>
                   </div>
                   <div className="glass rounded-xl p-3 text-center border border-white/8">
                     <p className="text-[10px] text-slate-500 mb-0.5">30D Yield</p>
-                    <p className="font-orbitron font-bold text-yellow-400 text-sm lg:text-base">{proj30d.toFixed(3)}</p>
+                    <p className="font-orbitron font-bold text-yellow-400 text-sm">{proj30d.toFixed(4)}</p>
                   </div>
                 </div>
 

@@ -19,6 +19,13 @@ html, body {
   font-family: 'Exo 2', sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  height: 100%;
+}
+
+@media (min-width: 1024px) {
+  html, body {
+    overflow: hidden;
+  }
 }
 
 h1, h2, h3, .font-orbitron {
@@ -101,6 +108,14 @@ h1, h2, h3, .font-orbitron {
 .card-hover:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 .progress-bar {
