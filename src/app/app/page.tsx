@@ -373,6 +373,22 @@ export default function DashboardPage() {
             YOLDR
           </motion.h1>
           <div className="flex items-center gap-2">
+            {/* Desktop nav links */}
+            <div className="hidden lg:flex items-center gap-1 mr-3">
+              {[
+                { label: "Shields", href: "/app/shields" },
+                { label: "Badges", href: "/app/badges" },
+                { label: "Ranks", href: "/app/leaderboard" },
+              ].map((item) => (
+                <button
+                  key={item.href}
+                  onClick={() => router.push(item.href)}
+                  className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer font-medium"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
             {user?.addr && (
               <a
                 href={`https://testnet.flowscan.io/account/${user.addr}`}

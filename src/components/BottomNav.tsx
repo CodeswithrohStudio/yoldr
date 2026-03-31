@@ -59,7 +59,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-xl border-t border-white/8">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-xl border-t border-white/8">
       <div className="flex items-center justify-around max-w-480px mx-auto px-2 pt-2 pb-safe pb-2">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.path || (item.path !== "/app" && pathname.startsWith(item.path));
