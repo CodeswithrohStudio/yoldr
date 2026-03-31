@@ -358,13 +358,10 @@ export default function DashboardPage() {
   [positions]);
 
   return (
-    <div className="flex flex-col min-h-screen px-4 pt-4 pb-6">
+    <div className="min-h-screen bg-[#0F172A] px-4 lg:px-8 xl:px-12 pt-4 pb-6">
       {/* ── Storytelling deposit loading screen ── */}
-      <DepositLoadingScreen
-        show={isDepositing}
-        petType={selectedPetType}
-        amount={depositAmount}
-      />
+      <DepositLoadingScreen show={isDepositing} petType={selectedPetType} amount={depositAmount} />
+
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-4">
         <motion.h1
@@ -374,7 +371,6 @@ export default function DashboardPage() {
         >
           YOLDR
         </motion.h1>
-
         <div className="flex items-center gap-2">
           {user?.addr && (
             <a
@@ -396,7 +392,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Streak / XP bar ── */}
+      {/* ── Streak / XP bar — full width ── */}
       {vault && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
@@ -404,455 +400,383 @@ export default function DashboardPage() {
           transition={{ delay: 0.1 }}
           className="mb-5"
         >
-          <StreakBar
-            streak={vault.streakCount}
-            xp={vault.xpPoints}
-            level={Math.floor(vault.xpPoints / 100) + 1}
-          />
+          <StreakBar streak={vault.streakCount} xp={vault.xpPoints} level={Math.floor(vault.xpPoints / 100) + 1} />
         </motion.div>
       )}
 
       {/* ── Loading state ── */}
       {isLoading && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-4">
+        <div className="flex flex-col items-center justify-center flex-1 gap-4 min-h-[60vh]">
           <Spinner />
           <p className="text-slate-500 text-sm">Loading your vault…</p>
         </div>
       )}
 
       {!isLoading && (
-        <>
-          {/* ── Pet display ── */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.15 }}
-            className="flex justify-center mb-5"
-          >
-            {pet ? (
-              <div className="relative">
-                <VaultPetDisplay
-                  pet={pet}
-                  size="lg"
-                  returnPct={activeReturnPct}
-                  onFeed={!fedToday ? handleFeedPet : undefined}
-                />
-                {/* Daily feed tooltip */}
-                {!fedToday && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1.5 }}
-                    className="text-center text-xs text-slate-600 mt-1"
-                  >
-                    tap to feed · earns streak XP
-                  </motion.p>
-                )}
-                {/* Feed pop effect */}
-                <AnimatePresence>
-                  {feedPop && (
-                    <motion.div
-                      initial={{ opacity: 1, y: 0, scale: 0.8 }}
-                      animate={{ opacity: 0, y: -48, scale: 1.2 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 1.2, ease: "easeOut" }}
-                      className="absolute top-0 left-1/2 -translate-x-1/2 text-2xl pointer-events-none"
-                    >
-                      ✨+10 XP
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <div
-                  className="w-40 h-40 rounded-full border-2 border-dashed border-yellow-500/20 flex items-center justify-center"
-                  style={{ boxShadow: "0 0 30px rgba(245,158,11,0.08)" }}
-                >
-                  <span className="text-5xl opacity-30">🐾</span>
-                </div>
-                <p className="text-slate-500 text-xs">No pet yet</p>
-              </div>
-            )}
-          </motion.div>
+        /* ── 2-col dashboard on lg+, single col on mobile ── */
+        <div className="flex flex-col lg:flex-row lg:gap-6 lg:items-start">
 
-          {/* ── Vault card ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass rounded-2xl p-5 mb-4"
-            style={{ border: "1px solid rgba(245,158,11,0.25)", boxShadow: "0 0 30px rgba(245,158,11,0.05)" }}
-          >
-            {vault ? (
-              <>
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-slate-400 text-xs mb-1">Your Principal</p>
-                    <div className="flex items-end gap-2">
-                      <span className="font-orbitron font-bold text-3xl text-green-400">
-                        <AnimatedNumber value={vault.principal} decimals={4} />
-                      </span>
-                      <span className="text-green-500 text-sm mb-1">FLOW</span>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/25 font-orbitron tracking-wide">
-                    ALWAYS SAFE
-                  </span>
-                </div>
+          {/* ══ LEFT COLUMN — pet, vault, actions ══ */}
+          <div className="lg:w-[340px] lg:shrink-0 flex flex-col">
 
-                {/* Accrued yield */}
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-slate-400 text-xs mb-0.5">Accrued Yield</p>
-                    <span className="font-orbitron font-bold text-yellow-400 text-lg">
-                      +{liveYield.toFixed(6)}
-                      <span className="text-yellow-500/70 text-xs ml-1">FLOW</span>
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-slate-400 text-xs mb-0.5">Total Earned</p>
-                    <span className="text-slate-300 text-sm font-orbitron">
-                      <AnimatedNumber value={vault.totalYieldEarned} decimals={4} />
-                      <span className="text-slate-500 text-xs ml-1">FLOW</span>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Yield progress bar */}
-                <div>
-                  <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-                    <span>Yield progress</span>
-                    <span className="text-yellow-400">{yieldPct.toFixed(4)}% of principal</span>
-                  </div>
-                  <div className="progress-bar">
-                    <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-400"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.max(0.5, yieldPct)}%` }}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              /* No vault state */
-              <div className="text-center py-4">
-                <div className="text-4xl mb-3">🏦</div>
-                <h3 className="font-orbitron font-bold text-white text-base mb-1.5">
-                  No vault yet
-                </h3>
-                <p className="text-slate-400 text-sm mb-5">
-                  Deposit FLOW to start earning yield and protect your savings.
-                </p>
-                <button
-                  onClick={() => setShowDepositModal(true)}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-orbitron font-bold text-sm text-black cursor-pointer transition-all hover:scale-105 active:scale-95"
-                  style={{
-                    background: "linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)",
-                    boxShadow: "0 0 20px rgba(245,158,11,0.3)",
-                  }}
-                >
-                  Deposit FLOW to start
-                </button>
-              </div>
-            )}
-          </motion.div>
-
-          {/* ── FLOW Wallet Balance (Flow native FungibleToken) ── */}
-          {flowBalance !== null && (
+            {/* Pet display */}
             <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              className="glass rounded-2xl px-4 py-3 mb-4 flex items-center justify-between"
-              style={{ border: "1px solid rgba(99,102,241,0.2)" }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="flex justify-center mb-5"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-base">◎</span>
-                <span className="text-xs text-slate-400">Wallet Balance</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-orbitron font-bold text-indigo-300 text-sm">
-                  {flowBalance.toFixed(4)}
-                </span>
-                <span className="text-indigo-400/60 text-xs">FLOW</span>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ── If vault exists: deposit more / shields ── */}
-          {vault && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="flex gap-3 mb-4"
-            >
-              <button
-                onClick={() => setShowDepositModal(true)}
-                className="flex-1 py-3 rounded-xl text-sm font-bold text-yellow-400 border border-yellow-500/30 bg-yellow-500/8 hover:bg-yellow-500/15 transition-all cursor-pointer"
-              >
-                + Add FLOW
-              </button>
-              <button
-                onClick={() => router.push("/app/shields")}
-                className="flex-1 py-3 rounded-xl text-sm font-bold text-purple-300 border border-purple-500/30 bg-purple-500/8 hover:bg-purple-500/15 transition-all cursor-pointer"
-              >
-                🛡️ Pick a Shield →
-              </button>
-            </motion.div>
-          )}
-
-          {/* ── Active position cards ── */}
-          {positions.map((pos, i) => (
-            <motion.div
-              key={pos.id}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 + i * 0.08 }}
-              className="glass rounded-2xl p-4 mb-4 border border-white/8"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{PET_EMOJI[pos.shieldType] ?? "🛡️"}</span>
-                  <div>
-                    <p className="text-white font-bold text-sm">{pos.shieldType.replace(/_/g, " ")}</p>
-                    <p className="text-slate-500 text-xs">{pos.asset} · {pos.leverage}x</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p
-                    className={`font-orbitron font-bold text-base ${
-                      pos.returnPct >= 0 ? "text-green-400" : "text-red-400"
-                    }`}
-                  >
-                    {pos.returnPct >= 0 ? "+" : ""}
-                    {(pos.returnPct * 100).toFixed(2)}%
-                  </p>
-                  <p className="text-slate-500 text-xs">P&amp;L</p>
-                </div>
-              </div>
-
-              {/* Health / performance bar */}
-              <div>
-                <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-                  <span>Position health</span>
-                  <span className="font-mono">
-                    {pos.depositAmount.toFixed(4)} FLOW margin
-                  </span>
-                </div>
-                <div className="progress-bar">
-                  <motion.div
-                    className={`h-full rounded-full ${
-                      pos.returnPct >= 0.1
-                        ? "bg-gradient-to-r from-green-500 to-emerald-400"
-                        : pos.returnPct >= 0
-                        ? "bg-gradient-to-r from-yellow-500 to-amber-400"
-                        : "bg-gradient-to-r from-red-600 to-red-400"
-                    }`}
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${Math.min(100, Math.max(5, 50 + pos.returnPct * 100))}%`,
-                    }}
-                    transition={{ duration: 0.8 }}
+              {pet ? (
+                <div className="relative">
+                  <VaultPetDisplay
+                    pet={pet}
+                    size="lg"
+                    returnPct={activeReturnPct}
+                    onFeed={!fedToday ? handleFeedPet : undefined}
                   />
-                </div>
-              </div>
-
-              <div className="flex justify-between mt-3 text-xs text-slate-500">
-                <span>Open @ {pos.openPrice.toFixed(2)}</span>
-                <span>Now @ {pos.currentPrice.toFixed(2)}</span>
-              </div>
-            </motion.div>
-          ))}
-
-          {/* ── No positions prompt ── */}
-          {vault && positions.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="glass rounded-2xl p-4 border border-purple-500/20 text-center"
-              style={{ background: "rgba(139,92,246,0.05)" }}
-            >
-              <p className="text-slate-400 text-sm mb-3">No active Shield position yet.</p>
-              <button
-                onClick={() => router.push("/app/shields")}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-orbitron font-bold text-sm text-white cursor-pointer transition-all hover:scale-105 active:scale-95"
-                style={{
-                  background: "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)",
-                  boxShadow: "0 0 20px rgba(139,92,246,0.3)",
-                }}
-              >
-                Pick a Shield →
-              </button>
-            </motion.div>
-          )}
-        </>
-      )}
-
-          {/* ── Analytics & Charts ── */}
-          {vault && vault.principal > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.45 }}
-              className="mb-4"
-            >
-              <p className="text-[10px] text-slate-600 font-medium tracking-widest uppercase mb-3 px-1">
-                Analytics
-              </p>
-
-              {/* Yield Growth Chart */}
-              <div
-                className="glass rounded-2xl p-4 mb-3"
-                style={{ border: "1px solid rgba(245,158,11,0.15)" }}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs text-slate-400 font-medium">Yield Growth · 30-Day Projection</p>
-                  <span className="text-[10px] font-orbitron text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                    5% APY
-                  </span>
-                </div>
-                <ResponsiveContainer width="100%" height={130}>
-                  <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="histGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.35} />
-                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: 8, fill: "#475569" }}
-                      axisLine={false}
-                      tickLine={false}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis
-                      tick={{ fontSize: 8, fill: "#475569" }}
-                      axisLine={false}
-                      tickLine={false}
-                      tickFormatter={(v: number) => v.toFixed(3)}
-                    />
-                    <Tooltip
-                      contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
-                      labelStyle={{ color: "#94A3B8" }}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      formatter={(v: any) => [`${(+v).toFixed(6)} FLOW`, ""]}
-                    />
-                    <ReferenceLine
-                      x={nowLabel}
-                      stroke="#F59E0B"
-                      strokeDasharray="3 3"
-                      strokeOpacity={0.6}
-                      label={{ value: "NOW", fill: "#F59E0B", fontSize: 8, position: "top" }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="historical"
-                      stroke="#F59E0B"
-                      strokeWidth={2}
-                      fill="url(#histGrad)"
-                      dot={false}
-                      connectNulls={false}
-                      isAnimationActive
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="projected"
-                      stroke="#8B5CF6"
-                      strokeWidth={1.5}
-                      strokeDasharray="4 3"
-                      fill="url(#projGrad)"
-                      dot={false}
-                      connectNulls={false}
-                      isAnimationActive
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-                <div className="flex items-center gap-4 mt-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-0.5 bg-amber-400 rounded" />
-                    <span className="text-[10px] text-slate-500">Earned</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-0.5 bg-purple-400 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg,#8B5CF6 0,#8B5CF6 3px,transparent 3px,transparent 6px)" }} />
-                    <span className="text-[10px] text-slate-500">Projected</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stats Row */}
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                <div className="glass rounded-xl p-3 text-center border border-white/8">
-                  <p className="text-[10px] text-slate-500 mb-0.5">APY</p>
-                  <p className="font-orbitron font-bold text-amber-400 text-sm">5.00%</p>
-                </div>
-                <div className="glass rounded-xl p-3 text-center border border-white/8">
-                  <p className="text-[10px] text-slate-500 mb-0.5">Days Active</p>
-                  <p className="font-orbitron font-bold text-white text-sm">{daysSinceHarvest}d</p>
-                </div>
-                <div className="glass rounded-xl p-3 text-center border border-white/8">
-                  <p className="text-[10px] text-slate-500 mb-0.5">30D Yield</p>
-                  <p className="font-orbitron font-bold text-yellow-400 text-sm">{proj30d.toFixed(3)}</p>
-                </div>
-              </div>
-
-              {/* Position P&L Bar Chart */}
-              {pnlBarData.length > 0 && (
-                <div
-                  className="glass rounded-2xl p-4"
-                  style={{ border: "1px solid rgba(255,255,255,0.08)" }}
-                >
-                  <p className="text-xs text-slate-400 font-medium mb-3">Shield P&amp;L</p>
-                  <ResponsiveContainer width="100%" height={Math.max(60, pnlBarData.length * 40)}>
-                    <BarChart
-                      data={pnlBarData}
-                      layout="vertical"
-                      margin={{ top: 0, right: 40, left: 4, bottom: 0 }}
+                  {!fedToday && (
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 1.5 }}
+                      className="text-center text-xs text-slate-600 mt-1"
                     >
-                      <XAxis
-                        type="number"
-                        tick={{ fontSize: 8, fill: "#475569" }}
-                        axisLine={false}
-                        tickLine={false}
-                        tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}%`}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        tick={{ fontSize: 9, fill: "#94A3B8" }}
-                        axisLine={false}
-                        tickLine={false}
-                        width={90}
-                      />
-                      <Tooltip
-                        contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(v: any) => [`${+v > 0 ? "+" : ""}${(+v).toFixed(2)}%`, "P&L"]}
-                      />
-                      <ReferenceLine x={0} stroke="rgba(255,255,255,0.1)" />
-                      <Bar dataKey="pnl" radius={[0, 4, 4, 0]} maxBarSize={18}>
-                        {pnlBarData.map((entry, i) => (
-                          <Cell
-                            key={i}
-                            fill={entry.pnl >= 0 ? "#22C55E" : "#EF4444"}
-                            fillOpacity={0.85}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                      tap to feed · earns streak XP
+                    </motion.p>
+                  )}
+                  <AnimatePresence>
+                    {feedPop && (
+                      <motion.div
+                        initial={{ opacity: 1, y: 0, scale: 0.8 }}
+                        animate={{ opacity: 0, y: -48, scale: 1.2 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 1.2, ease: "easeOut" }}
+                        className="absolute top-0 left-1/2 -translate-x-1/2 text-2xl pointer-events-none"
+                      >
+                        ✨+10 XP
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <div
+                    className="w-40 h-40 rounded-full border-2 border-dashed border-yellow-500/20 flex items-center justify-center"
+                    style={{ boxShadow: "0 0 30px rgba(245,158,11,0.08)" }}
+                  >
+                    <span className="text-5xl opacity-30">🐾</span>
+                  </div>
+                  <p className="text-slate-500 text-xs">No pet yet</p>
                 </div>
               )}
             </motion.div>
-          )}
+
+            {/* Vault card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="glass rounded-2xl p-5 mb-4"
+              style={{ border: "1px solid rgba(245,158,11,0.25)", boxShadow: "0 0 30px rgba(245,158,11,0.05)" }}
+            >
+              {vault ? (
+                <>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <p className="text-slate-400 text-xs mb-1">Your Principal</p>
+                      <div className="flex items-end gap-2">
+                        <span className="font-orbitron font-bold text-3xl text-green-400">
+                          <AnimatedNumber value={vault.principal} decimals={4} />
+                        </span>
+                        <span className="text-green-500 text-sm mb-1">FLOW</span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/25 font-orbitron tracking-wide">
+                      ALWAYS SAFE
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-slate-400 text-xs mb-0.5">Accrued Yield</p>
+                      <span className="font-orbitron font-bold text-yellow-400 text-lg">
+                        +{liveYield.toFixed(6)}
+                        <span className="text-yellow-500/70 text-xs ml-1">FLOW</span>
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-slate-400 text-xs mb-0.5">Total Earned</p>
+                      <span className="text-slate-300 text-sm font-orbitron">
+                        <AnimatedNumber value={vault.totalYieldEarned} decimals={4} />
+                        <span className="text-slate-500 text-xs ml-1">FLOW</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                      <span>Yield progress</span>
+                      <span className="text-yellow-400">{yieldPct.toFixed(4)}% of principal</span>
+                    </div>
+                    <div className="progress-bar">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-400"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.max(0.5, yieldPct)}%` }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <div className="text-4xl mb-3">🏦</div>
+                  <h3 className="font-orbitron font-bold text-white text-base mb-1.5">No vault yet</h3>
+                  <p className="text-slate-400 text-sm mb-5">
+                    Deposit FLOW to start earning yield and protect your savings.
+                  </p>
+                  <button
+                    onClick={() => setShowDepositModal(true)}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-orbitron font-bold text-sm text-black cursor-pointer transition-all hover:scale-105 active:scale-95"
+                    style={{ background: "linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)", boxShadow: "0 0 20px rgba(245,158,11,0.3)" }}
+                  >
+                    Deposit FLOW to start
+                  </button>
+                </div>
+              )}
+            </motion.div>
+
+            {/* FLOW Wallet Balance */}
+            {flowBalance !== null && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="glass rounded-2xl px-4 py-3 mb-4 flex items-center justify-between"
+                style={{ border: "1px solid rgba(99,102,241,0.2)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-base">◎</span>
+                  <span className="text-xs text-slate-400">Wallet Balance</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-orbitron font-bold text-indigo-300 text-sm">{flowBalance.toFixed(4)}</span>
+                  <span className="text-indigo-400/60 text-xs">FLOW</span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Action buttons */}
+            {vault && (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="flex gap-3 mb-4"
+              >
+                <button
+                  onClick={() => setShowDepositModal(true)}
+                  className="flex-1 py-3 rounded-xl text-sm font-bold text-yellow-400 border border-yellow-500/30 bg-yellow-500/8 hover:bg-yellow-500/15 transition-all cursor-pointer"
+                >
+                  + Add FLOW
+                </button>
+                <button
+                  onClick={() => router.push("/app/shields")}
+                  className="flex-1 py-3 rounded-xl text-sm font-bold text-purple-300 border border-purple-500/30 bg-purple-500/8 hover:bg-purple-500/15 transition-all cursor-pointer"
+                >
+                  🛡️ Pick a Shield →
+                </button>
+              </motion.div>
+            )}
+          </div>
+          {/* ── end LEFT COLUMN ── */}
+
+          {/* ══ RIGHT COLUMN — charts, analytics, positions ══ */}
+          <div className="flex-1 flex flex-col min-w-0">
+
+            {/* Analytics & Charts */}
+            {vault && vault.principal > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="mb-4"
+              >
+                <p className="text-[10px] text-slate-600 font-medium tracking-widest uppercase mb-3 px-1">
+                  Analytics
+                </p>
+
+                {/* Yield Growth Chart */}
+                <div
+                  className="glass rounded-2xl p-4 mb-3"
+                  style={{ border: "1px solid rgba(245,158,11,0.15)" }}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs text-slate-400 font-medium">Yield Growth · 30-Day Projection</p>
+                    <span className="text-[10px] font-orbitron text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                      5% APY
+                    </span>
+                  </div>
+                  <div className="h-[130px] lg:h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="histGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.25} />
+                            <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                        <YAxis tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v.toFixed(3)} />
+                        <Tooltip
+                          contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
+                          labelStyle={{ color: "#94A3B8" }}
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          formatter={(v: any) => [`${(+v).toFixed(6)} FLOW`, ""]}
+                        />
+                        <ReferenceLine x={nowLabel} stroke="#F59E0B" strokeDasharray="3 3" strokeOpacity={0.6} label={{ value: "NOW", fill: "#F59E0B", fontSize: 8, position: "top" }} />
+                        <Area type="monotone" dataKey="historical" stroke="#F59E0B" strokeWidth={2} fill="url(#histGrad)" dot={false} connectNulls={false} isAnimationActive />
+                        <Area type="monotone" dataKey="projected" stroke="#8B5CF6" strokeWidth={1.5} strokeDasharray="4 3" fill="url(#projGrad)" dot={false} connectNulls={false} isAnimationActive />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-0.5 bg-amber-400 rounded" />
+                      <span className="text-[10px] text-slate-500">Earned</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-0.5 rounded" style={{ background: "repeating-linear-gradient(90deg,#8B5CF6 0,#8B5CF6 3px,transparent 3px,transparent 6px)", width: 12 }} />
+                      <span className="text-[10px] text-slate-500">Projected</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div className="glass rounded-xl p-3 text-center border border-white/8">
+                    <p className="text-[10px] text-slate-500 mb-0.5">APY</p>
+                    <p className="font-orbitron font-bold text-amber-400 text-sm lg:text-base">5.00%</p>
+                  </div>
+                  <div className="glass rounded-xl p-3 text-center border border-white/8">
+                    <p className="text-[10px] text-slate-500 mb-0.5">Days Active</p>
+                    <p className="font-orbitron font-bold text-white text-sm lg:text-base">{daysSinceHarvest}d</p>
+                  </div>
+                  <div className="glass rounded-xl p-3 text-center border border-white/8">
+                    <p className="text-[10px] text-slate-500 mb-0.5">30D Yield</p>
+                    <p className="font-orbitron font-bold text-yellow-400 text-sm lg:text-base">{proj30d.toFixed(3)}</p>
+                  </div>
+                </div>
+
+                {/* Position P&L Bar Chart */}
+                {pnlBarData.length > 0 && (
+                  <div className="glass rounded-2xl p-4 mb-3" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <p className="text-xs text-slate-400 font-medium mb-3">Shield P&amp;L</p>
+                    <div style={{ height: Math.max(60, pnlBarData.length * 44) }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={pnlBarData} layout="vertical" margin={{ top: 0, right: 48, left: 4, bottom: 0 }}>
+                          <XAxis type="number" tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}%`} />
+                          <YAxis type="category" dataKey="name" tick={{ fontSize: 9, fill: "#94A3B8" }} axisLine={false} tickLine={false} width={100} />
+                          <Tooltip
+                            contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            formatter={(v: any) => [`${+v > 0 ? "+" : ""}${(+v).toFixed(2)}%`, "P&L"]}
+                          />
+                          <ReferenceLine x={0} stroke="rgba(255,255,255,0.1)" />
+                          <Bar dataKey="pnl" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                            {pnlBarData.map((entry, i) => (
+                              <Cell key={i} fill={entry.pnl >= 0 ? "#22C55E" : "#EF4444"} fillOpacity={0.85} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Active position cards — 2-col grid on lg */}
+            {positions.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+                {positions.map((pos, i) => (
+                  <motion.div
+                    key={pos.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 + i * 0.08 }}
+                    className="glass rounded-2xl p-4 border border-white/8"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{PET_EMOJI[pos.shieldType] ?? "🛡️"}</span>
+                        <div>
+                          <p className="text-white font-bold text-sm">{pos.shieldType.replace(/_/g, " ")}</p>
+                          <p className="text-slate-500 text-xs">{pos.asset} · {pos.leverage}x</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-orbitron font-bold text-base ${pos.returnPct >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {pos.returnPct >= 0 ? "+" : ""}{(pos.returnPct * 100).toFixed(2)}%
+                        </p>
+                        <p className="text-slate-500 text-xs">P&amp;L</p>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                        <span>Position health</span>
+                        <span className="font-mono">{pos.depositAmount.toFixed(4)} FLOW margin</span>
+                      </div>
+                      <div className="progress-bar">
+                        <motion.div
+                          className={`h-full rounded-full ${
+                            pos.returnPct >= 0.1 ? "bg-gradient-to-r from-green-500 to-emerald-400"
+                              : pos.returnPct >= 0 ? "bg-gradient-to-r from-yellow-500 to-amber-400"
+                              : "bg-gradient-to-r from-red-600 to-red-400"
+                          }`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(100, Math.max(5, 50 + pos.returnPct * 100))}%` }}
+                          transition={{ duration: 0.8 }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between mt-3 text-xs text-slate-500">
+                      <span>Open @ {pos.openPrice.toFixed(2)}</span>
+                      <span>Now @ {pos.currentPrice.toFixed(2)}</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* No positions prompt */}
+            {vault && positions.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="glass rounded-2xl p-4 border border-purple-500/20 text-center"
+                style={{ background: "rgba(139,92,246,0.05)" }}
+              >
+                <p className="text-slate-400 text-sm mb-3">No active Shield position yet.</p>
+                <button
+                  onClick={() => router.push("/app/shields")}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-orbitron font-bold text-sm text-white cursor-pointer transition-all hover:scale-105 active:scale-95"
+                  style={{ background: "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)", boxShadow: "0 0 20px rgba(139,92,246,0.3)" }}
+                >
+                  Pick a Shield →
+                </button>
+              </motion.div>
+            )}
+          </div>
+          {/* ── end RIGHT COLUMN ── */}
+
+        </div>
+      )}
 
       {/* ── Deposit Modal ── */}
       <AnimatePresence>
