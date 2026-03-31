@@ -212,9 +212,10 @@ export default function BadgesPage() {
   const { user, badges, setBadges } = useYoldrStore();
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const userAddr = user?.addr;
 
   useEffect(() => {
-    if (!user?.addr) return;
+    if (!userAddr) return;
 
     async function fetchBadges() {
       setLoading(true);
@@ -224,7 +225,7 @@ export default function BadgesPage() {
         const result = await fcl.query({
           cadence: SCRIPTS.getBadges,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          args: (arg: any, t: any) => [arg(user!.addr, t.Address)],
+          args: (arg: any, t: any) => [arg(userAddr, t.Address)],
         });
 
         const parsed: BadgeState[] = (result ?? []).map((b: {
@@ -259,7 +260,7 @@ export default function BadgesPage() {
     }
 
     fetchBadges();
-  }, [user?.addr, setBadges]);
+  }, [setBadges, userAddr]);
 
   const totalBadges = badges.length;
   const rareCount = badges.filter((b) => b.isRare).length;
