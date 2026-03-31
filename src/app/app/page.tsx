@@ -358,66 +358,62 @@ export default function DashboardPage() {
   [positions]);
 
   return (
-    <div className="bg-[#0F172A] min-h-screen lg:h-screen lg:overflow-hidden lg:flex lg:flex-col px-4 lg:px-8 xl:px-12 pt-4">
+    <div className="bg-[#0F172A] min-h-screen lg:h-screen lg:overflow-hidden flex flex-col">
       {/* ── Storytelling deposit loading screen ── */}
       <DepositLoadingScreen show={isDepositing} petType={selectedPetType} amount={depositAmount} />
 
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between mb-3 shrink-0">
-        <motion.h1
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="font-orbitron font-bold text-xl shimmer-text tracking-widest"
-        >
-          YOLDR
-        </motion.h1>
-        <div className="flex items-center gap-2">
-          {user?.addr && (
-            <a
-              href={`https://testnet.flowscan.io/account/${user.addr}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-slate-400 glass px-3 py-1.5 rounded-full border border-white/8 font-mono hover:text-white hover:border-white/20 transition-colors"
-              title="View on FlowScan"
-            >
-              {truncateAddr(user.addr)} ↗
-            </a>
-          )}
-          <button
-            onClick={handleSignOut}
-            className="text-xs text-slate-500 hover:text-slate-300 glass px-3 py-1.5 rounded-full border border-white/8 transition-colors cursor-pointer"
+      {/* ── Top bar: Header + Streak (fixed height, full width) ── */}
+      <div className="shrink-0 px-4 lg:px-8 pt-4 pb-3 border-b border-white/5">
+        <div className="flex items-center justify-between mb-3">
+          <motion.h1
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="font-orbitron font-bold text-xl shimmer-text tracking-widest"
           >
-            Sign out
-          </button>
+            YOLDR
+          </motion.h1>
+          <div className="flex items-center gap-2">
+            {user?.addr && (
+              <a
+                href={`https://testnet.flowscan.io/account/${user.addr}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-400 glass px-3 py-1.5 rounded-full border border-white/8 font-mono hover:text-white hover:border-white/20 transition-colors"
+                title="View on FlowScan"
+              >
+                {truncateAddr(user.addr)} ↗
+              </a>
+            )}
+            <button
+              onClick={handleSignOut}
+              className="text-xs text-slate-500 hover:text-slate-300 glass px-3 py-1.5 rounded-full border border-white/8 transition-colors cursor-pointer"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
+        {vault && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <StreakBar streak={vault.streakCount} xp={vault.xpPoints} level={Math.floor(vault.xpPoints / 100) + 1} />
+          </motion.div>
+        )}
       </div>
-
-      {/* ── Streak / XP bar — full width ── */}
-      {vault && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-3 shrink-0"
-        >
-          <StreakBar streak={vault.streakCount} xp={vault.xpPoints} level={Math.floor(vault.xpPoints / 100) + 1} />
-        </motion.div>
-      )}
 
       {/* ── Loading state ── */}
       {isLoading && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-4 min-h-[60vh]">
+        <div className="flex flex-col items-center justify-center flex-1 gap-4">
           <Spinner />
           <p className="text-slate-500 text-sm">Loading your vault…</p>
         </div>
       )}
 
       {!isLoading && (
-        /* ── 2-col dashboard on lg+: both columns fill and scroll independently ── */
-        <div className="flex flex-col lg:flex-row lg:gap-6 lg:flex-1 lg:min-h-0 pb-6">
+        /* ── Body: sidebar | main — fills remaining screen height on desktop ── */
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
 
-          {/* ══ LEFT COLUMN — pet, vault, actions ══ */}
-          <div className="lg:w-[300px] xl:w-[320px] lg:shrink-0 flex flex-col lg:overflow-y-auto lg:pb-4 scrollbar-hide">
+          {/* ══ LEFT SIDEBAR — pet, vault, actions ══ */}
+          <div className="lg:w-[270px] xl:w-[290px] shrink-0 flex flex-col overflow-y-auto scrollbar-hide
+                          px-4 lg:px-5 pt-4 pb-6 lg:border-r lg:border-white/5">
 
             {/* Pet display */}
             <motion.div
@@ -591,8 +587,8 @@ export default function DashboardPage() {
           </div>
           {/* ── end LEFT COLUMN ── */}
 
-          {/* ══ RIGHT COLUMN — charts, analytics, positions ══ */}
-          <div className="flex-1 flex flex-col min-w-0 lg:overflow-y-auto lg:pb-4 scrollbar-hide">
+          {/* ══ RIGHT MAIN — charts, analytics, positions ══ */}
+          <div className="flex-1 min-w-0 flex flex-col overflow-y-auto scrollbar-hide px-4 lg:px-7 pt-4 pb-8">
 
             {/* Analytics & Charts */}
             {vault && vault.principal > 0 && (
