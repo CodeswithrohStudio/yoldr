@@ -149,8 +149,8 @@ export default function VaultPetDisplay({ pet, size = "md", returnPct, onFeed }:
 
       {/* Pet info */}
       {size !== "sm" && (
-        <div className="text-center">
-          <div className="flex items-center gap-2 justify-center mb-1">
+        <div className="w-full max-w-[220px] text-center">
+          <div className="mb-1 flex flex-wrap items-center justify-center gap-2">
             <span className="text-xs text-slate-400 font-medium">{pet.petType}</span>
             <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full font-orbitron font-bold">
               Lv.{pet.level}
@@ -163,7 +163,7 @@ export default function VaultPetDisplay({ pet, size = "md", returnPct, onFeed }:
           </div>
 
           {/* Health bar */}
-          <div className="w-32 mx-auto">
+          <div className="w-full mx-auto">
             <div className="flex justify-between text-xs text-slate-400 mb-1">
               <span>Health</span>
               <span className={healthPct > 60 ? "text-green-400" : healthPct > 30 ? "text-yellow-400" : "text-red-400"}>
@@ -181,7 +181,7 @@ export default function VaultPetDisplay({ pet, size = "md", returnPct, onFeed }:
           </div>
 
           {/* XP bar */}
-          <div className="w-32 mx-auto mt-2">
+          <div className="w-full mx-auto mt-2">
             <div className="flex justify-between text-xs text-slate-400 mb-1">
               <span>XP</span>
               <span className="text-yellow-400">{pet.xp} / {(pet.level) * 100}</span>

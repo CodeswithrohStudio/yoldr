@@ -51,6 +51,14 @@ function AnimatedNumber({ value, decimals = 4 }: { value: number; decimals?: num
   return <>{displayed.toFixed(decimals)}</>;
 }
 
+function formatStoryAge(days: number) {
+  if (days <= 0) return "Newly awakened";
+  if (days === 1) return "1 day into the quest";
+  if (days < 7) return `${days} days into the quest`;
+  if (days < 30) return `${Math.floor(days / 7)} weeks into the quest`;
+  return `${Math.floor(days / 30)} months into the quest`;
+}
+
 function Spinner() {
   return (
     <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-yellow-400 animate-spin" />
@@ -171,7 +179,7 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.addr, setVault, setPet, setPositions]);
+  }, [addToast, user?.addr, setVault, setPet, setPositions]);
 
   // Initial fetch
   useEffect(() => {
@@ -357,6 +365,46 @@ export default function DashboardPage() {
     })),
   [positions]);
 
+  const storyBeat = useMemo(() => {
+    if (!vault) {
+      return {
+        eyebrow: "Prologue",
+        title: "Your vault story has not started yet.",
+        body: "Deposit FLOW, choose a companion, and the dashboard becomes a living journal of growth, risk, and rewards.",
+      };
+    }
+
+    if (positions.length === 0) {
+      return {
+        eyebrow: "Chapter One",
+        title: "The vault is earning quietly while the pet waits for a shield.",
+        body: "Your principal is protected and compounding. The next plot point is choosing a shield to turn passive yield into an active campaign.",
+      };
+    }
+
+    if (activeReturnPct >= 0.1) {
+      return {
+        eyebrow: "Momentum",
+        title: "Your companion is pushing through a strong run.",
+        body: "Yield is stacking in the background while the active shield is adding conviction. This is the part of the story where the vault feels alive.",
+      };
+    }
+
+    if (activeReturnPct >= 0) {
+      return {
+        eyebrow: "Steady Climb",
+        title: "The vault is holding formation.",
+        body: "Returns are modest but healthy. Your pet, principal, and shield are all moving in sync without taking unnecessary heat.",
+      };
+    }
+
+    return {
+      eyebrow: "Tension",
+      title: "The shield is absorbing pressure while the vault stays intact.",
+      body: "The dashboard is built to make this moment readable: principal stays safe, yield keeps accruing, and position health shows how much room you still have.",
+    };
+  }, [activeReturnPct, positions.length, vault]);
+
   return (
     <div className="bg-[#0F172A] min-h-screen lg:h-screen lg:overflow-hidden flex flex-col">
       {/* ── Storytelling deposit loading screen ── */}
@@ -364,7 +412,7 @@ export default function DashboardPage() {
 
       {/* ── Top bar: Header + Streak (fixed height, full width) ── */}
       <div className="shrink-0 px-4 lg:px-8 pt-4 pb-3 border-b border-white/5">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <motion.h1
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -372,7 +420,7 @@ export default function DashboardPage() {
           >
             YOLDR
           </motion.h1>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             {/* Desktop nav links */}
             <div className="hidden lg:flex items-center gap-1 mr-3">
               {[
@@ -394,7 +442,7 @@ export default function DashboardPage() {
                 href={`https://testnet.flowscan.io/account/${user.addr}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-slate-400 glass px-3 py-1.5 rounded-full border border-white/8 font-mono hover:text-white hover:border-white/20 transition-colors"
+                className="max-w-full truncate text-xs text-slate-400 glass px-3 py-1.5 rounded-full border border-white/8 font-mono hover:text-white hover:border-white/20 transition-colors"
                 title="View on FlowScan"
               >
                 {truncateAddr(user.addr)} ↗
@@ -428,7 +476,7 @@ export default function DashboardPage() {
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
 
           {/* ══ LEFT SIDEBAR — pet, vault, actions ══ */}
-          <div className="lg:w-[270px] xl:w-[290px] shrink-0 flex flex-col overflow-y-auto scrollbar-hide
+          <div className="lg:w-[310px] xl:w-[340px] shrink-0 flex flex-col overflow-y-auto scrollbar-hide
                           px-4 lg:px-5 pt-4 pb-6 lg:border-r lg:border-white/5">
 
             {/* Pet display */}
@@ -483,42 +531,69 @@ export default function DashboardPage() {
               )}
             </motion.div>
 
+            {/* Story card */}
+            {vault && (
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.18 }}
+                className="relative overflow-hidden rounded-[28px] p-5 mb-4 border border-amber-400/15"
+                style={{
+                  background: "radial-gradient(circle at top left, rgba(245,158,11,0.16), transparent 38%), linear-gradient(180deg, rgba(30,41,59,0.92), rgba(15,23,42,0.95))",
+                  boxShadow: "0 18px 50px rgba(0,0,0,0.22)",
+                }}
+              >
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/60 to-transparent" />
+                <p className="text-[10px] uppercase tracking-[0.32em] text-amber-300/60 mb-2">{storyBeat.eyebrow}</p>
+                <h2 className="text-white text-lg leading-tight font-semibold mb-2 text-balance">{storyBeat.title}</h2>
+                <p className="text-sm leading-6 text-slate-300">{storyBeat.body}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-slate-300">
+                    {formatStoryAge(daysSinceHarvest)}
+                  </span>
+                  <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] text-emerald-300">
+                    Principal protected
+                  </span>
+                </div>
+              </motion.div>
+            )}
+
             {/* Vault card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="glass rounded-2xl p-5 mb-4"
+              className="glass rounded-[28px] p-5 mb-4 overflow-hidden"
               style={{ border: "1px solid rgba(245,158,11,0.25)", boxShadow: "0 0 30px rgba(245,158,11,0.05)" }}
             >
               {vault ? (
                 <>
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
+                  <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       <p className="text-slate-400 text-xs mb-1">Your Principal</p>
-                      <div className="flex items-end gap-2">
-                        <span className="font-orbitron font-bold text-3xl text-green-400">
+                      <div className="flex min-w-0 flex-wrap items-end gap-x-2 gap-y-1">
+                        <span className="min-w-0 break-all font-orbitron font-bold text-3xl text-green-400 leading-none">
                           <AnimatedNumber value={vault.principal} decimals={4} />
                         </span>
-                        <span className="text-green-500 text-sm mb-1">FLOW</span>
+                        <span className="text-green-500 text-sm">FLOW</span>
                       </div>
                     </div>
-                    <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/25 font-orbitron tracking-wide">
+                    <span className="inline-flex w-fit max-w-full items-center rounded-full bg-green-500/15 px-3 py-1.5 text-[11px] font-bold tracking-[0.22em] text-green-400 border border-green-500/25 font-orbitron">
                       ALWAYS SAFE
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
+                  <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                    <div className="min-w-0 rounded-2xl border border-yellow-500/10 bg-yellow-500/5 px-4 py-3">
                       <p className="text-slate-400 text-xs mb-0.5">Accrued Yield</p>
-                      <span className="font-orbitron font-bold text-yellow-400 text-lg">
+                      <span className="block min-w-0 break-all font-orbitron font-bold text-yellow-400 text-lg leading-tight">
                         +{liveYield.toFixed(6)}
                         <span className="text-yellow-500/70 text-xs ml-1">FLOW</span>
                       </span>
                     </div>
-                    <div className="text-right">
+                    <div className="min-w-0 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 sm:text-right">
                       <p className="text-slate-400 text-xs mb-0.5">Total Earned</p>
-                      <span className="text-slate-300 text-sm font-orbitron">
+                      <span className="block min-w-0 break-all text-slate-300 text-sm font-orbitron leading-tight">
                         <AnimatedNumber value={vault.totalYieldEarned} decimals={4} />
                         <span className="text-slate-500 text-xs ml-1">FLOW</span>
                       </span>
@@ -584,7 +659,7 @@ export default function DashboardPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="flex gap-3 mb-4"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4"
               >
                 <button
                   onClick={() => setShowDepositModal(true)}
@@ -614,18 +689,47 @@ export default function DashboardPage() {
                 transition={{ delay: 0.25 }}
                 className="mb-4"
               >
-                <p className="text-[11px] text-slate-500 font-semibold tracking-widest uppercase mb-3 px-1">
-                  Analytics
-                </p>
+                <div className="mb-4 px-1">
+                  <p className="text-[11px] text-slate-500 font-semibold tracking-widest uppercase mb-2">
+                    Captain&apos;s Log
+                  </p>
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="max-w-2xl">
+                      <h2 className="text-xl lg:text-2xl text-white font-semibold leading-tight text-balance">
+                        A dashboard that reads like the state of your expedition, not a pile of stats.
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-slate-400">
+                        Track the calm parts, the tension, and the upside in sequence: vault growth first, shield pressure next, and open positions last.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                      <div className="glass rounded-2xl px-4 py-3 border border-white/8 min-w-[120px]">
+                        <p className="text-[10px] text-slate-500 mb-0.5">APY</p>
+                        <p className="font-orbitron font-bold text-amber-400 text-sm">5.00%</p>
+                      </div>
+                      <div className="glass rounded-2xl px-4 py-3 border border-white/8 min-w-[120px]">
+                        <p className="text-[10px] text-slate-500 mb-0.5">Days Active</p>
+                        <p className="font-orbitron font-bold text-white text-sm">{daysSinceHarvest}d</p>
+                      </div>
+                      <div className="glass rounded-2xl px-4 py-3 border border-white/8 min-w-[120px]">
+                        <p className="text-[10px] text-slate-500 mb-0.5">30D Yield</p>
+                        <p className="font-orbitron font-bold text-yellow-400 text-sm">{proj30d.toFixed(4)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Yield Growth Chart */}
                 <div
-                  className="glass rounded-2xl p-4 mb-3"
+                  className="glass rounded-[28px] p-4 lg:p-5 mb-3 overflow-hidden"
                   style={{ border: "1px solid rgba(245,158,11,0.15)" }}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-slate-400 font-medium">Yield Growth · 30-Day Projection</p>
-                    <span className="text-[10px] font-orbitron text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500 mb-1">Vault arc</p>
+                      <p className="text-sm text-slate-300 font-medium">Yield Growth · 30-Day Projection</p>
+                    </div>
+                    <span className="w-fit text-[10px] font-orbitron text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                       5% APY
                     </span>
                   </div>
@@ -668,26 +772,13 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Stats Row */}
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  <div className="glass rounded-xl p-3 text-center border border-white/8">
-                    <p className="text-[10px] text-slate-500 mb-0.5">APY</p>
-                    <p className="font-orbitron font-bold text-amber-400 text-sm">5.00%</p>
-                  </div>
-                  <div className="glass rounded-xl p-3 text-center border border-white/8">
-                    <p className="text-[10px] text-slate-500 mb-0.5">Days Active</p>
-                    <p className="font-orbitron font-bold text-white text-sm">{daysSinceHarvest}d</p>
-                  </div>
-                  <div className="glass rounded-xl p-3 text-center border border-white/8">
-                    <p className="text-[10px] text-slate-500 mb-0.5">30D Yield</p>
-                    <p className="font-orbitron font-bold text-yellow-400 text-sm">{proj30d.toFixed(4)}</p>
-                  </div>
-                </div>
-
                 {/* Position P&L Bar Chart */}
                 {pnlBarData.length > 0 && (
-                  <div className="glass rounded-2xl p-4 mb-3" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <p className="text-xs text-slate-400 font-medium mb-3">Shield P&amp;L</p>
+                  <div className="glass rounded-[28px] p-4 lg:p-5 mb-3 overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div className="mb-3">
+                      <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500 mb-1">Pressure map</p>
+                      <p className="text-sm text-slate-300 font-medium">Shield P&amp;L</p>
+                    </div>
                     <div style={{ height: Math.max(60, pnlBarData.length * 44) }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={pnlBarData} layout="vertical" margin={{ top: 0, right: 48, left: 4, bottom: 0 }}>
@@ -721,17 +812,17 @@ export default function DashboardPage() {
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.35 + i * 0.08 }}
-                    className="glass rounded-2xl p-4 border border-white/8"
+                    className="glass rounded-[26px] p-4 border border-white/8 overflow-hidden"
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <span className="text-lg">{PET_EMOJI[pos.shieldType] ?? "🛡️"}</span>
-                        <div>
-                          <p className="text-white font-bold text-sm">{pos.shieldType.replace(/_/g, " ")}</p>
-                          <p className="text-slate-500 text-xs">{pos.asset} · {pos.leverage}x</p>
+                        <div className="min-w-0">
+                          <p className="truncate text-white font-bold text-sm">{pos.shieldType.replace(/_/g, " ")}</p>
+                          <p className="truncate text-slate-500 text-xs">{pos.asset} · {pos.leverage}x</p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="shrink-0 text-right">
                         <p className={`font-orbitron font-bold text-base ${pos.returnPct >= 0 ? "text-green-400" : "text-red-400"}`}>
                           {pos.returnPct >= 0 ? "+" : ""}{(pos.returnPct * 100).toFixed(2)}%
                         </p>
@@ -739,9 +830,9 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div>
-                      <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                      <div className="flex flex-wrap justify-between gap-2 text-xs text-slate-500 mb-1.5">
                         <span>Position health</span>
-                        <span className="font-mono">{pos.depositAmount.toFixed(4)} FLOW margin</span>
+                        <span className="font-mono break-all">{pos.depositAmount.toFixed(4)} FLOW margin</span>
                       </div>
                       <div className="progress-bar">
                         <motion.div
@@ -756,7 +847,7 @@ export default function DashboardPage() {
                         />
                       </div>
                     </div>
-                    <div className="flex justify-between mt-3 text-xs text-slate-500">
+                    <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-slate-500">
                       <span>Open @ {pos.openPrice.toFixed(2)}</span>
                       <span>Now @ {pos.currentPrice.toFixed(2)}</span>
                     </div>
