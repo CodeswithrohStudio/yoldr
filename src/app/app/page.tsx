@@ -684,7 +684,10 @@ export default function DashboardPage() {
                         <Tooltip
                           contentStyle={{ background: "#0B1020", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 11 }}
                           labelStyle={{ color: "#94A3B8" }}
-                          formatter={(v: number | string | undefined) => [`${Number(v ?? 0).toFixed(6)} FLOW`, "Yield"]}
+                          formatter={(value: unknown) => {
+                            const normalized = Array.isArray(value) ? value[0] : value;
+                            return [`${Number(normalized ?? 0).toFixed(6)} FLOW`, "Yield"];
+                          }}
                         />
                         <ReferenceLine x={nowLabel} stroke="#f59e0b" strokeDasharray="4 4" strokeOpacity={0.6} />
                         <Area type="monotone" dataKey="historical" stroke="#f59e0b" strokeWidth={2} fill="url(#desktopHistGrad)" dot={false} />
