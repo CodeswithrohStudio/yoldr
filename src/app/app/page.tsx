@@ -21,14 +21,6 @@ const PET_OPTIONS = [
   { type: "Narwhal", emoji: "🦄", label: "Narwhal", color: "border-green-500/50 bg-green-500/10" },
 ];
 
-const DESKTOP_NAV_ITEMS = [
-  "Dashboard",
-  "Assets",
-  "Shield Desk",
-  "Yield Planner",
-  "Badges",
-];
-
 function truncateAddr(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
@@ -395,7 +387,6 @@ export default function DashboardPage() {
     })),
   [positions]);
 
-  const featuredPositions = positions.slice(0, 3);
   const desktopFocusPosition = activePosition ?? positions[0] ?? null;
   const desktopMomentumLabel = activeReturnPct >= 0.1
     ? "Momentum"
@@ -513,379 +504,331 @@ export default function DashboardPage() {
         /* ── Body: sidebar | main — fills remaining screen height on desktop ── */
         <div className="flex-1 min-h-0 overflow-hidden">
 
-          <div className="hidden lg:flex h-full overflow-hidden bg-[#0B0C13]">
-            <aside className="w-[250px] shrink-0 border-r border-white/6 bg-[#0A0B11] px-4 py-4">
-              <div className="flex h-full flex-col">
-                <div className="rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
+          <div className="hidden lg:flex h-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.09),transparent_28%),radial-gradient(circle_at_top_right,rgba(139,92,246,0.14),transparent_34%),#0b1020]">
+            <aside className="w-[320px] shrink-0 border-r border-white/6 px-5 py-5">
+              <div className="flex h-full flex-col gap-5">
+                <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-white to-violet-300 text-sm font-orbitron font-bold text-[#0B0C13]">
-                      YR
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-orange-400 text-sm font-orbitron font-bold text-[#0b1020]">
+                      YO
                     </div>
                     <div>
-                      <p className="font-orbitron text-sm text-white">Yoldr</p>
-                      <p className="text-[11px] text-slate-500">Principal-protected yield</p>
+                      <p className="font-orbitron text-base text-white">Yoldr Questboard</p>
+                      <p className="text-[11px] text-slate-500">Gamified yield with principal protection</p>
                     </div>
                   </div>
-
-                  {pet && (
-                    <div className="mt-5 rounded-[22px] border border-violet-400/15 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.24),transparent_54%),linear-gradient(180deg,rgba(17,24,39,0.84),rgba(15,23,42,0.96))] p-4">
-                      <div className="mb-4 flex items-center gap-3">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-2xl">
-                          {PET_EMOJI[pet.shieldType] ?? "🦁"}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-white">{pet.petType}</p>
-                          <p className="text-[11px] text-slate-400">Level {pet.level} companion</p>
-                        </div>
-                      </div>
-                      <div className="space-y-3 text-xs">
-                        <div>
-                          <div className="mb-1 flex items-center justify-between text-slate-400">
-                            <span>Health</span>
-                            <span className="text-emerald-300">{Math.round(pet.health * 100)}%</span>
-                          </div>
-                          <div className="progress-bar">
-                            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-green-300" style={{ width: `${Math.round(pet.health * 100)}%` }} />
-                          </div>
-                        </div>
-                        <div>
-                          <div className="mb-1 flex items-center justify-between text-slate-400">
-                            <span>XP</span>
-                            <span className="text-violet-300">{pet.xp}</span>
-                          </div>
-                          <div className="progress-bar">
-                            <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-300" style={{ width: `${Math.min(100, pet.xp % 100)}%` }} />
-                          </div>
-                        </div>
-                      </div>
+                  {vault && (
+                    <div className="mt-5 rounded-[22px] border border-amber-400/15 bg-amber-500/8 px-4 py-3">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-amber-200/80">Current chapter</p>
+                      <p className="mt-2 text-lg font-semibold text-white">
+                        {positions.length > 0 ? "Shield run in progress" : "Vault charged and ready"}
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-slate-300">
+                        {positions.length > 0
+                          ? "Your pet is actively scouting the market while your yield keeps funding the run."
+                          : "You have protected capital on deck. The next move is choosing a shield."}
+                      </p>
                     </div>
                   )}
                 </div>
 
-                <nav className="mt-6 space-y-1">
-                  {DESKTOP_NAV_ITEMS.map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm transition-colors ${
-                        item === "Dashboard"
-                          ? "border border-white/10 bg-white/[0.06] text-white"
-                          : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
-                      }`}
-                    >
-                      <span>{item}</span>
-                      {item === "Dashboard" && <span className="h-2 w-2 rounded-full bg-violet-300" />}
-                    </button>
-                  ))}
-                </nav>
+                <div className="rounded-[28px] border border-white/8 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.18),transparent_55%),linear-gradient(180deg,rgba(15,23,42,0.92),rgba(11,16,32,0.96))] p-5">
+                  {pet ? (
+                    <>
+                      <div className="flex justify-center">
+                        <VaultPetDisplay
+                          pet={pet}
+                          size="md"
+                          returnPct={activeReturnPct}
+                          onFeed={!fedToday ? handleFeedPet : undefined}
+                        />
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
+                          <p className="text-[11px] text-slate-500">Streak</p>
+                          <p className="mt-1 font-orbitron text-2xl text-white">{vault?.streakCount ?? 0}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
+                          <p className="text-[11px] text-slate-500">XP</p>
+                          <p className="mt-1 font-orbitron text-2xl text-white">{vault?.xpPoints ?? 0}</p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rounded-[22px] border border-dashed border-white/10 p-6 text-center">
+                      <div className="text-5xl opacity-40">🐾</div>
+                      <p className="mt-3 text-sm text-slate-400">Deposit to summon your first companion.</p>
+                    </div>
+                  )}
+                </div>
 
-                <div className="mt-6 rounded-[24px] border border-white/8 bg-white/[0.03] p-4">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Active staking</p>
-                  <div className="mt-3 space-y-3">
-                    {positions.slice(0, 4).map((pos) => {
-                      const badge = getShieldBadge(pos.shieldType);
-                      return (
-                        <button
-                          key={pos.id}
-                          type="button"
-                          onClick={() => router.push(`/app/position/${pos.id}`)}
-                          className="flex w-full items-center gap-3 rounded-2xl border border-white/6 bg-white/[0.02] px-3 py-3 text-left hover:bg-white/[0.04]"
-                        >
-                          <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-[11px] font-orbitron font-bold tracking-[0.18em] ${badge.tone}`}>
-                            {badge.initials}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[12px] font-medium text-white">{pos.asset}</p>
-                            <p className="text-[11px] text-slate-500">{pos.depositAmount.toFixed(2)} FLOW</p>
-                          </div>
-                          <span className={`text-[11px] font-orbitron ${pos.returnPct >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                            {formatPercent(pos.returnPct * 100)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {positions.length === 0 && (
-                      <p className="rounded-2xl border border-dashed border-white/8 px-3 py-4 text-center text-[12px] text-slate-500">
-                        No shield positions open yet.
+                <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Quest log</p>
+                  <div className="mt-4 space-y-3">
+                    <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3">
+                      <p className="text-sm text-white">Protect the treasury</p>
+                      <p className="mt-1 text-[12px] text-slate-500">
+                        {vault ? `${vault.principal.toFixed(2)} FLOW is protected in the vault.` : "Start by depositing FLOW."}
                       </p>
-                    )}
+                    </div>
+                    <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3">
+                      <p className="text-sm text-white">Feed the companion</p>
+                      <p className="mt-1 text-[12px] text-slate-500">
+                        {fedToday ? "Daily feed completed. Streak kept alive." : "Tap your pet card to collect today’s XP."}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3">
+                      <p className="text-sm text-white">Enter the arena</p>
+                      <p className="mt-1 text-[12px] text-slate-500">
+                        {positions.length > 0 ? `${positions.length} shield run${positions.length > 1 ? "s" : ""} active.` : "Pick a shield to start your first run."}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-auto rounded-[24px] border border-violet-400/15 bg-gradient-to-br from-violet-500/18 via-transparent to-cyan-400/10 p-4">
-                  <p className="text-sm font-medium text-white">Activate Super</p>
-                  <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                    Unlock a cleaner desktop command center for your next shield play.
-                  </p>
+                <div className="mt-auto rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Wallet</p>
+                  <p className="mt-3 font-orbitron text-3xl text-white">{flowBalance !== null ? flowBalance.toFixed(4) : "0.0000"}</p>
+                  <p className="text-sm text-slate-500">Available FLOW outside the vault</p>
                 </div>
               </div>
             </aside>
 
-            <main className="min-w-0 flex-1 overflow-y-auto px-6 py-4">
-              <div className="flex items-center justify-between rounded-[22px] border border-white/6 bg-[#0C0D15] px-5 py-3">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm">
-                      {pet ? PET_EMOJI[pet.shieldType] ?? "🦁" : "◎"}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">{user?.addr ? truncateAddr(user.addr) : "Explorer"}</p>
-                      <p className="text-[11px] text-slate-500">{desktopMomentumLabel} mode</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowDepositModal(true)}
-                    className="rounded-2xl bg-gradient-to-r from-violet-200 to-violet-300 px-5 py-2.5 text-sm font-semibold text-[#0B0C13] transition-transform hover:scale-[1.02]"
-                  >
-                    Deposit
-                  </button>
+            <main className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Dashboard</p>
+                  <h2 className="mt-2 text-[2.3rem] font-semibold tracking-tight text-white">Your Yield Adventure</h2>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() => router.push("/app/shields")}
-                    className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-slate-300 hover:text-white"
+                    className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-sm text-slate-300 hover:text-white"
                   >
-                    Shields
+                    Pick Shield
+                  </button>
+                  <button
+                    onClick={() => setShowDepositModal(true)}
+                    className="rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-400 px-5 py-2.5 text-sm font-semibold text-[#0b1020]"
+                  >
+                    Deposit FLOW
                   </button>
                   <button
                     onClick={handleSignOut}
-                    className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-slate-500 hover:text-white"
+                    className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-sm text-slate-500 hover:text-white"
                   >
                     Sign out
                   </button>
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-[minmax(0,1fr)_300px] gap-5">
-                <section className="min-w-0">
-                  <div className="mb-5 flex items-end justify-between">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Recommended shields</p>
-                      <h2 className="mt-2 text-[2rem] font-semibold tracking-tight text-white">Top Staking Assets</h2>
+              <div className="mt-5 grid grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] gap-5">
+                <section className="rounded-[30px] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_32%),linear-gradient(180deg,#14182a,#0b1020)] p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200/70">Vault status</p>
+                      <h3 className="mt-2 text-[2rem] font-semibold text-white">
+                        {positions.length > 0 ? "The arena is live" : "Your vault is waiting for a run"}
+                      </h3>
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                        Principal stays safe in the treasury, yield keeps building, and every shield position becomes a visible run your companion can react to.
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5">24H</span>
-                      <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5">Yield</span>
-                      <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5">Desk</span>
+                    <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-right">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-amber-200/80">30D reward</p>
+                      <p className="mt-1 font-orbitron text-2xl text-white">{proj30d.toFixed(4)} FLOW</p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    {featuredPositions.map((pos, index) => {
-                      const badge = getShieldBadge(pos.shieldType);
-                      const curveColor = index === 2 ? "#fb7185" : "#9f7aea";
-                      const cardData = chartData.length > 0
-                        ? chartData.map((point, pointIndex) => ({
-                          label: point.label,
-                          value: point.historical ?? point.projected ?? (index + 1) * 0.01 * pointIndex,
-                        }))
-                        : Array.from({ length: 8 }, (_, pointIndex) => ({ label: `${pointIndex}`, value: pointIndex * 0.02 }));
+                  <div className="mt-6 grid grid-cols-4 gap-4">
+                    <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+                      <p className="text-[11px] text-slate-500">Principal</p>
+                      <p className="mt-2 font-orbitron text-3xl text-white">{vault ? vault.principal.toFixed(2) : "0.00"}</p>
+                    </div>
+                    <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+                      <p className="text-[11px] text-slate-500">Live Yield</p>
+                      <p className="mt-2 font-orbitron text-3xl text-amber-300">{liveYield.toFixed(4)}</p>
+                    </div>
+                    <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+                      <p className="text-[11px] text-slate-500">Momentum</p>
+                      <p className="mt-2 font-orbitron text-3xl text-white">{desktopMomentumLabel}</p>
+                    </div>
+                    <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+                      <p className="text-[11px] text-slate-500">Level</p>
+                      <p className="mt-2 font-orbitron text-3xl text-white">{vault ? Math.floor(vault.xpPoints / 100) + 1 : 1}</p>
+                    </div>
+                  </div>
 
+                  <div className="mt-6 h-[220px] rounded-[24px] border border-white/8 bg-[#0b1020]/70 p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Reward arc</p>
+                        <p className="text-sm text-white">Yield growth and projection</p>
+                      </div>
+                      <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[11px] text-slate-300">5% APY</span>
+                    </div>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -22, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="desktopHistGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="desktopProjGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
+                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v.toFixed(3)} />
+                        <Tooltip
+                          contentStyle={{ background: "#0B1020", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 11 }}
+                          labelStyle={{ color: "#94A3B8" }}
+                          formatter={(v: number | string) => [`${Number(v).toFixed(6)} FLOW`, "Yield"]}
+                        />
+                        <ReferenceLine x={nowLabel} stroke="#f59e0b" strokeDasharray="4 4" strokeOpacity={0.6} />
+                        <Area type="monotone" dataKey="historical" stroke="#f59e0b" strokeWidth={2} fill="url(#desktopHistGrad)" dot={false} />
+                        <Area type="monotone" dataKey="projected" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 4" fill="url(#desktopProjGrad)" dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </section>
+
+                <aside className="flex flex-col gap-5">
+                  <div className="rounded-[30px] border border-violet-400/18 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.28),transparent_52%),linear-gradient(180deg,#131125,#0b1020)] p-5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] uppercase tracking-[0.22em] text-violet-200/70">Quest objective</p>
+                      <span className="rounded-full bg-violet-200 px-3 py-1 text-[11px] font-medium text-[#0b1020]">
+                        {positions.length > 0 ? "Active" : "Ready"}
+                      </span>
+                    </div>
+                    <h3 className="mt-4 text-2xl font-semibold text-white">
+                      {positions.length > 0 ? "Protect the current run" : "Launch your first shield"}
+                    </h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                      {positions.length > 0
+                        ? "Watch position health, keep your streak alive, and let your pet read the market while yield compounds."
+                        : "Your vault is ready. Pick a shield to turn passive yield into an active game loop."}
+                    </p>
+                    <div className="mt-5 space-y-3">
+                      <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3">
+                        <p className="text-[11px] text-slate-500">Days active</p>
+                        <p className="mt-1 font-orbitron text-2xl text-white">{daysSinceHarvest}d</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3">
+                        <p className="text-[11px] text-slate-500">Open runs</p>
+                        <p className="mt-1 font-orbitron text-2xl text-white">{positions.length}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[30px] border border-white/8 bg-white/[0.03] p-5">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Quick links</p>
+                    <div className="mt-4 grid grid-cols-3 gap-3">
+                      <button
+                        onClick={() => router.push("/app/shields")}
+                        className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-white"
+                      >
+                        Shields
+                      </button>
+                      <button
+                        onClick={() => router.push("/app/badges")}
+                        className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-white"
+                      >
+                        Badges
+                      </button>
+                      <button
+                        onClick={() => router.push("/app/leaderboard")}
+                        className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-white"
+                      >
+                        Ranks
+                      </button>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+
+              <section className="mt-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Shield arena</p>
+                    <h3 className="mt-2 text-[2rem] font-semibold text-white">Live runs</h3>
+                  </div>
+                  {desktopFocusPosition && (
+                    <button
+                      onClick={() => router.push(`/app/position/${desktopFocusPosition.id}`)}
+                      className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-sm text-white"
+                    >
+                      View active run
+                    </button>
+                  )}
+                </div>
+
+                {positions.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-4">
+                    {positions.map((pos) => {
+                      const badge = getShieldBadge(pos.shieldType);
                       return (
-                        <div
+                        <button
                           key={pos.id}
-                          className="overflow-hidden rounded-[28px] border border-white/8 bg-[radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.18),transparent_32%),linear-gradient(180deg,#11131e,#0a0b12)] p-5"
+                          type="button"
+                          onClick={() => router.push(`/app/position/${pos.id}`)}
+                          className="overflow-hidden rounded-[28px] border border-white/8 bg-[radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.12),transparent_34%),linear-gradient(180deg,#12172a,#0b1020)] p-5 text-left transition-transform hover:-translate-y-0.5"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
                               <span className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border text-[12px] font-orbitron font-bold tracking-[0.2em] ${badge.tone}`}>
                                 {badge.initials}
                               </span>
-                              <div>
-                                <p className="text-[11px] text-slate-500">Proof of Stake</p>
-                                <p className="text-sm font-medium text-white">{pos.asset}</p>
+                              <div className="min-w-0">
+                                <p className="truncate text-base font-semibold text-white">{pos.shieldType.replace(/_/g, " ")}</p>
+                                <p className="text-[12px] text-slate-500">{pos.asset} · {pos.leverage}x</p>
                               </div>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => router.push(`/app/position/${pos.id}`)}
-                              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/8 text-slate-400 hover:text-white"
-                            >
-                              ↗
-                            </button>
-                          </div>
-
-                          <div className="mt-8">
-                            <p className="text-[11px] text-slate-500">Reward Rate</p>
-                            <p className="mt-1 font-orbitron text-4xl text-white">{Math.abs(pos.returnPct * 100 + 8).toFixed(2)}%</p>
-                            <p className={`mt-2 text-xs ${pos.returnPct >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                            <span className={`font-orbitron text-lg ${pos.returnPct >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
                               {formatPercent(pos.returnPct * 100)}
-                            </p>
+                            </span>
                           </div>
 
-                          <div className="mt-6 h-[90px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={cardData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-                                <defs>
-                                  <linearGradient id={`desktopCardGrad${pos.id}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor={curveColor} stopOpacity={0.35} />
-                                    <stop offset="95%" stopColor={curveColor} stopOpacity={0} />
-                                  </linearGradient>
-                                </defs>
-                                <Area type="monotone" dataKey="value" stroke={curveColor} strokeWidth={2} fill={`url(#desktopCardGrad${pos.id})`} dot={false} />
-                              </AreaChart>
-                            </ResponsiveContainer>
+                          <div className="mt-6 grid grid-cols-2 gap-3">
+                            <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3">
+                              <p className="text-[11px] text-slate-500">Open price</p>
+                              <p className="mt-1 font-orbitron text-xl text-white">{pos.openPrice.toFixed(2)}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3">
+                              <p className="text-[11px] text-slate-500">Current price</p>
+                              <p className="mt-1 font-orbitron text-xl text-white">{pos.currentPrice.toFixed(2)}</p>
+                            </div>
                           </div>
-                        </div>
+
+                          <div className="mt-5">
+                            <div className="mb-2 flex items-center justify-between text-[12px] text-slate-500">
+                              <span>Position health</span>
+                              <span>{pos.depositAmount.toFixed(4)} FLOW</span>
+                            </div>
+                            <div className="progress-bar">
+                              <div
+                                className={`h-full rounded-full ${
+                                  pos.returnPct >= 0.1
+                                    ? "bg-gradient-to-r from-emerald-500 to-green-300"
+                                    : pos.returnPct >= 0
+                                      ? "bg-gradient-to-r from-yellow-500 to-amber-300"
+                                      : "bg-gradient-to-r from-rose-600 to-rose-400"
+                                }`}
+                                style={{ width: `${Math.min(100, Math.max(6, 50 + pos.returnPct * 100))}%` }}
+                              />
+                            </div>
+                          </div>
+                        </button>
                       );
                     })}
-
-                    {featuredPositions.length === 0 && (
-                      <div className="col-span-3 rounded-[28px] border border-dashed border-white/8 bg-white/[0.02] p-10 text-center text-slate-500">
-                        Open a shield to populate the desktop dashboard.
-                      </div>
-                    )}
                   </div>
-                </section>
-
-                <aside className="rounded-[28px] border border-violet-400/15 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.34),transparent_44%),linear-gradient(180deg,#0f1020,#171129)] p-5">
-                  <div className="flex items-center justify-between">
-                    <p className="font-orbitron text-sm text-white">Yoldr</p>
-                    <span className="rounded-full bg-violet-200 px-3 py-1 text-[11px] font-medium text-[#0B0C13]">Live</span>
+                ) : (
+                  <div className="rounded-[30px] border border-dashed border-white/8 bg-white/[0.02] p-10 text-center">
+                    <p className="text-lg text-white">No runs in the arena yet</p>
+                    <p className="mt-2 text-sm text-slate-500">Choose a shield to turn your protected vault into a playable strategy loop.</p>
                   </div>
-                  <h3 className="mt-8 text-[2rem] font-semibold leading-tight text-white">Liquid Staking Portfolio</h3>
-                  <p className="mt-3 text-sm leading-6 text-slate-300">
-                    Keep principal safe, let yield fund the playbook, and manage each shield from one desktop command center.
-                  </p>
-                  <div className="mt-8 space-y-3">
-                    <button
-                      onClick={() => setShowDepositModal(true)}
-                      className="w-full rounded-2xl bg-gradient-to-r from-violet-200 to-violet-300 px-4 py-3 text-sm font-semibold text-[#0B0C13]"
-                    >
-                      Connect with Wallet
-                    </button>
-                    <a
-                      href={user?.addr ? `https://testnet.flowscan.io/account/${user.addr}` : "#"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full rounded-2xl border border-white/12 bg-white/[0.05] px-4 py-3 text-center text-sm text-white"
-                    >
-                      View Address
-                    </a>
-                  </div>
-                </aside>
-              </div>
-
-              <section className="mt-5 rounded-[30px] border border-white/8 bg-[#0D0F18] p-5">
-                <div className="flex items-start justify-between gap-5">
-                  <div className="min-w-0">
-                    <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">Your active staking</p>
-                    <h3 className="mt-3 text-[2rem] font-semibold tracking-tight text-white">
-                      {desktopFocusPosition ? `${desktopFocusPosition.shieldType.replace(/_/g, " ")} (${desktopFocusPosition.asset})` : "No active shield"}
-                    </h3>
-                    <div className="mt-4 flex items-center gap-3 text-xs text-slate-400">
-                      <span>Last update: live</span>
-                      <span className="h-1 w-1 rounded-full bg-slate-600" />
-                      <span>{daysSinceHarvest} days active</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => desktopFocusPosition && router.push(`/app/position/${desktopFocusPosition.id}`)}
-                      className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-white"
-                    >
-                      View Profile
-                    </button>
-                    <button
-                      onClick={() => router.push("/app/shields")}
-                      className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2 text-sm text-slate-400"
-                    >
-                      Manage
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-6 grid grid-cols-[minmax(0,1fr)_320px] gap-5">
-                  <div className="rounded-[26px] border border-white/6 bg-white/[0.02] p-5">
-                    <p className="text-[11px] text-slate-500">Current Reward Balance, FLOW</p>
-                    <div className="mt-2 flex items-end gap-3">
-                      <span className="font-orbitron text-[3.5rem] leading-none text-white">
-                        {vault ? liveYield.toFixed(4) : "0.0000"}
-                      </span>
-                      <span className="pb-2 text-slate-500">FLOW</span>
-                    </div>
-
-                    <div className="mt-6 grid grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Momentum</p>
-                        <p className="mt-2 text-sm text-white">{desktopMomentumLabel}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">General</p>
-                        <p className="mt-2 text-sm text-white">{vault ? `${vault.principal.toFixed(2)} FLOW` : "0 FLOW"}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Risk</p>
-                        <p className="mt-2 text-sm text-white">{positions.length > 0 ? `${positions.length} shield${positions.length > 1 ? "s" : ""}` : "Idle"}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Reward</p>
-                        <p className="mt-2 text-sm text-white">{proj30d.toFixed(4)} FLOW</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 grid grid-cols-4 gap-4">
-                      <div className="rounded-[22px] border border-white/6 bg-[#10131d] p-4">
-                        <p className="text-[11px] text-slate-500">Staked Trend</p>
-                        <p className={`mt-3 font-orbitron text-3xl ${activeReturnPct >= 0 ? "text-white" : "text-rose-300"}`}>
-                          {formatPercent(activeReturnPct * 100)}
-                        </p>
-                      </div>
-                      <div className="rounded-[22px] border border-white/6 bg-[#10131d] p-4">
-                        <p className="text-[11px] text-slate-500">Price</p>
-                        <p className="mt-3 font-orbitron text-3xl text-white">
-                          {desktopFocusPosition ? desktopFocusPosition.currentPrice.toFixed(2) : "0.00"}
-                        </p>
-                      </div>
-                      <div className="rounded-[22px] border border-white/6 bg-[#10131d] p-4">
-                        <p className="text-[11px] text-slate-500">Staking Ratio</p>
-                        <p className="mt-3 font-orbitron text-3xl text-white">
-                          {vault && flowBalance !== null ? `${Math.min(99, (vault.principal / Math.max(vault.principal + flowBalance, 1)) * 100).toFixed(1)}%` : "0.0%"}
-                        </p>
-                      </div>
-                      <div className="rounded-[22px] border border-white/6 bg-[#10131d] p-4">
-                        <p className="text-[11px] text-slate-500">Reward Rate</p>
-                        <p className="mt-3 font-orbitron text-3xl text-white">5.00%</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[26px] border border-white/6 bg-white/[0.02] p-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Investment Period</p>
-                        <p className="mt-2 text-2xl text-white">6 Month</p>
-                      </div>
-                      <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-300">Active</span>
-                    </div>
-
-                    <div className="mt-8">
-                      <div className="relative h-10">
-                        <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/10" />
-                        <div className="absolute left-[15%] right-[18%] top-1/2 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-violet-500 to-violet-300" />
-                        <div className="absolute left-[72%] top-1/2 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-violet-200 bg-[#0B0C13]">
-                          <div className="h-2 w-2 rounded-full bg-violet-200" />
-                        </div>
-                      </div>
-                      <div className="mt-4 flex justify-between text-[11px] text-slate-500">
-                        <span>1 Month</span>
-                        <span>4 Month</span>
-                        <span>6 Month</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-8 space-y-4">
-                      <div className="rounded-2xl border border-white/6 bg-[#10131d] p-4">
-                        <p className="text-[11px] text-slate-500">Wallet Balance</p>
-                        <p className="mt-2 font-orbitron text-2xl text-white">{flowBalance !== null ? flowBalance.toFixed(4) : "0.0000"} FLOW</p>
-                      </div>
-                      <div className="rounded-2xl border border-white/6 bg-[#10131d] p-4">
-                        <p className="text-[11px] text-slate-500">Streak XP</p>
-                        <p className="mt-2 font-orbitron text-2xl text-white">{vault ? vault.xpPoints : 0}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </section>
             </main>
           </div>
