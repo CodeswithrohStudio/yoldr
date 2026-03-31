@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, ReferenceLine, BarChart, Bar, Cell,
+} from "recharts";
 import { fcl, SCRIPTS, TRANSACTIONS, PET_EMOJI } from "@/lib/flow";
 import { fetchLivePrices } from "@/lib/prices";
 import { useYoldrStore } from "@/store/useYoldrStore";
@@ -202,6 +206,17 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  // Refetch immediately when user returns to this tab / navigates back from shields page
+  useEffect(() => {
+    const handler = () => { if (document.visibilityState === "visible") fetchData(); };
+    document.addEventListener("visibilitychange", handler);
+    window.addEventListener("focus", fetchData);
+    return () => {
+      document.removeEventListener("visibilitychange", handler);
+      window.removeEventListener("focus", fetchData);
+    };
+  }, [fetchData]);
+
   // Refresh live prices every 30 seconds without re-polling the whole chain
   useEffect(() => {
     const refresh = async () => {
@@ -286,6 +301,61 @@ export default function DashboardPage() {
   const activePosition = positions[0] ?? null;
 
   const activeReturnPct = activePosition?.returnPct ?? 0;
+
+  // ── Analytics chart data ─────────────────────────────────────────────────
+  const { chartData, nowLabel, proj30d, daysSinceHarvest } = useMemo(() => {
+    if (!vault || vault.principal <= 0) {
+      return { chartData: [], nowLabel: "Now", proj30d: 0, daysSinceHarvest: 0 };
+    }
+    const APY = 0.05;
+    const YEAR = 31_536_000;
+    const rate = vault.principal * APY / YEAR;
+    const now = Date.now() / 1000;
+    const start = vault.lastHarvestTimestamp;
+    const elapsed = Math.max(0, now - start);
+    const daysElapsed = elapsed / 86400;
+    const totalDays = daysElapsed + 30;
+    const steps = 20;
+
+    const data = Array.from({ length: steps + 1 }, (_, i) => {
+      const days = totalDays * i / steps;
+      const yieldVal = parseFloat((rate * days * 86400).toFixed(6));
+      const isPast = days <= daysElapsed;
+      return {
+        label: days < 0.1 ? "0d" : `${Math.round(days)}d`,
+        historical: isPast ? yieldVal : undefined,
+        projected: !isPast ? yieldVal : undefined,
+      };
+    });
+
+    // Ensure continuity at the "now" boundary
+    const nowIdx = data.findIndex((_, i) => {
+      const days = totalDays * i / steps;
+      return days > daysElapsed;
+    });
+    if (nowIdx > 0) {
+      const boundary = data[nowIdx - 1];
+      data[nowIdx] = { ...data[nowIdx], historical: boundary.historical };
+    }
+
+    const nl = data[nowIdx > 0 ? nowIdx - 1 : 0]?.label ?? "Now";
+    const p30 = rate * 30 * 86400;
+
+    return {
+      chartData: data,
+      nowLabel: nl,
+      proj30d: p30,
+      daysSinceHarvest: Math.round(daysElapsed),
+    };
+  }, [vault]);
+
+  const pnlBarData = useMemo(() =>
+    positions.map((p) => ({
+      name: p.shieldType.replace(/_/g, " "),
+      pnl: parseFloat((p.returnPct * 100).toFixed(2)),
+      asset: p.asset,
+    })),
+  [positions]);
 
   return (
     <div className="flex flex-col min-h-screen px-4 pt-4 pb-6">
@@ -621,6 +691,168 @@ export default function DashboardPage() {
           )}
         </>
       )}
+
+          {/* ── Analytics & Charts ── */}
+          {vault && vault.principal > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45 }}
+              className="mb-4"
+            >
+              <p className="text-[10px] text-slate-600 font-medium tracking-widest uppercase mb-3 px-1">
+                Analytics
+              </p>
+
+              {/* Yield Growth Chart */}
+              <div
+                className="glass rounded-2xl p-4 mb-3"
+                style={{ border: "1px solid rgba(245,158,11,0.15)" }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs text-slate-400 font-medium">Yield Growth · 30-Day Projection</p>
+                  <span className="text-[10px] font-orbitron text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    5% APY
+                  </span>
+                </div>
+                <ResponsiveContainer width="100%" height={130}>
+                  <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="histGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 8, fill: "#475569" }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 8, fill: "#475569" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v: number) => v.toFixed(3)}
+                    />
+                    <Tooltip
+                      contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
+                      labelStyle={{ color: "#94A3B8" }}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      formatter={(v: any) => [`${(+v).toFixed(6)} FLOW`, ""]}
+                    />
+                    <ReferenceLine
+                      x={nowLabel}
+                      stroke="#F59E0B"
+                      strokeDasharray="3 3"
+                      strokeOpacity={0.6}
+                      label={{ value: "NOW", fill: "#F59E0B", fontSize: 8, position: "top" }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="historical"
+                      stroke="#F59E0B"
+                      strokeWidth={2}
+                      fill="url(#histGrad)"
+                      dot={false}
+                      connectNulls={false}
+                      isAnimationActive
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="projected"
+                      stroke="#8B5CF6"
+                      strokeWidth={1.5}
+                      strokeDasharray="4 3"
+                      fill="url(#projGrad)"
+                      dot={false}
+                      connectNulls={false}
+                      isAnimationActive
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div className="flex items-center gap-4 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 bg-amber-400 rounded" />
+                    <span className="text-[10px] text-slate-500">Earned</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 bg-purple-400 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg,#8B5CF6 0,#8B5CF6 3px,transparent 3px,transparent 6px)" }} />
+                    <span className="text-[10px] text-slate-500">Projected</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats Row */}
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="glass rounded-xl p-3 text-center border border-white/8">
+                  <p className="text-[10px] text-slate-500 mb-0.5">APY</p>
+                  <p className="font-orbitron font-bold text-amber-400 text-sm">5.00%</p>
+                </div>
+                <div className="glass rounded-xl p-3 text-center border border-white/8">
+                  <p className="text-[10px] text-slate-500 mb-0.5">Days Active</p>
+                  <p className="font-orbitron font-bold text-white text-sm">{daysSinceHarvest}d</p>
+                </div>
+                <div className="glass rounded-xl p-3 text-center border border-white/8">
+                  <p className="text-[10px] text-slate-500 mb-0.5">30D Yield</p>
+                  <p className="font-orbitron font-bold text-yellow-400 text-sm">{proj30d.toFixed(3)}</p>
+                </div>
+              </div>
+
+              {/* Position P&L Bar Chart */}
+              {pnlBarData.length > 0 && (
+                <div
+                  className="glass rounded-2xl p-4"
+                  style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  <p className="text-xs text-slate-400 font-medium mb-3">Shield P&amp;L</p>
+                  <ResponsiveContainer width="100%" height={Math.max(60, pnlBarData.length * 40)}>
+                    <BarChart
+                      data={pnlBarData}
+                      layout="vertical"
+                      margin={{ top: 0, right: 40, left: 4, bottom: 0 }}
+                    >
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: 8, fill: "#475569" }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}%`}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        tick={{ fontSize: 9, fill: "#94A3B8" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={90}
+                      />
+                      <Tooltip
+                        contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        formatter={(v: any) => [`${+v > 0 ? "+" : ""}${(+v).toFixed(2)}%`, "P&L"]}
+                      />
+                      <ReferenceLine x={0} stroke="rgba(255,255,255,0.1)" />
+                      <Bar dataKey="pnl" radius={[0, 4, 4, 0]} maxBarSize={18}>
+                        {pnlBarData.map((entry, i) => (
+                          <Cell
+                            key={i}
+                            fill={entry.pnl >= 0 ? "#22C55E" : "#EF4444"}
+                            fillOpacity={0.85}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </motion.div>
+          )}
 
       {/* ── Deposit Modal ── */}
       <AnimatePresence>
