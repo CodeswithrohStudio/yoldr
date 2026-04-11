@@ -604,7 +604,7 @@ export default function DashboardPage() {
                         }}
                         labelStyle={{ color: "#475569", marginBottom: 3, fontSize: 10 }}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(v: any, name: string) => [
+                        formatter={(v: any, name: any) => [
                           <span key={name} className="font-mono">{(+v).toFixed(6)} FLOW</span>,
                           name === "earned" ? "Earned" : "Projected",
                         ]}
