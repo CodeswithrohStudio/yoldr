@@ -5,121 +5,87 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, ReferenceLine, BarChart, Bar, Cell,
+  ResponsiveContainer, ReferenceLine, CartesianGrid,
 } from "recharts";
-import { fcl, SCRIPTS, TRANSACTIONS, PET_EMOJI } from "@/lib/flow";
+import {
+  Lock, TrendingUp, Landmark, Shield, Plus, ArrowRight,
+  Wallet, ChevronRight, Activity, Clock,
+} from "lucide-react";
+import { fcl, SCRIPTS, TRANSACTIONS } from "@/lib/flow";
 import { fetchLivePrices } from "@/lib/prices";
 import { useYoldrStore } from "@/store/useYoldrStore";
-import VaultPetDisplay from "@/components/VaultPetDisplay";
-import StreakBar from "@/components/StreakBar";
 import DepositLoadingScreen from "@/components/DepositLoadingScreen";
 
-const PET_OPTIONS = [
-  { type: "Griffin", emoji: "🦁", label: "Griffin", color: "border-yellow-500/50 bg-yellow-500/10" },
-  { type: "Dragon", emoji: "🐉", label: "Dragon", color: "border-orange-500/50 bg-orange-500/10" },
-  { type: "Phoenix", emoji: "🦅", label: "Phoenix", color: "border-purple-500/50 bg-purple-500/10" },
-  { type: "Narwhal", emoji: "🦄", label: "Narwhal", color: "border-green-500/50 bg-green-500/10" },
-];
+/* ─── helpers ─────────────────────────────────────────────── */
 
-function truncateAddr(addr: string): string {
+function truncateAddr(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
 function AnimatedNumber({ value, decimals = 4 }: { value: number; decimals?: number }) {
   const [displayed, setDisplayed] = useState(value);
-
   useEffect(() => {
     const steps = 20;
     const diff = value - displayed;
     if (Math.abs(diff) < 0.0001) return;
     let step = 0;
-    const interval = setInterval(() => {
+    const id = setInterval(() => {
       step++;
       setDisplayed((prev) => {
-        const next = prev + diff / steps;
-        if (step >= steps) {
-          clearInterval(interval);
-          return value;
-        }
-        return next;
+        if (step >= steps) { clearInterval(id); return value; }
+        return prev + diff / steps;
       });
     }, 16);
-    return () => clearInterval(interval);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
-
   return <>{displayed.toFixed(decimals)}</>;
 }
 
-function formatStoryAge(days: number) {
-  if (days <= 0) return "Newly awakened";
-  if (days === 1) return "1 day into the quest";
-  if (days < 7) return `${days} days into the quest`;
-  if (days < 30) return `${Math.floor(days / 7)} weeks into the quest`;
-  return `${Math.floor(days / 30)} months into the quest`;
-}
+/* ─── skeleton ────────────────────────────────────────────── */
 
-function getShieldBadge(shieldType: string) {
-  const compact = shieldType.replace(/_/g, " ").trim();
-  const initials = compact
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  const tone = shieldType.includes("GOLD")
-    ? "border-amber-400/30 bg-amber-500/12 text-amber-200"
-    : shieldType.includes("ETHER")
-      ? "border-cyan-400/25 bg-cyan-500/10 text-cyan-200"
-      : "border-slate-300/15 bg-slate-200/5 text-slate-100";
-
-  return { initials, tone };
-}
-
-function formatPercent(value: number, digits = 2) {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(digits)}%`;
-}
-
-function Spinner() {
+function StatSkeleton() {
   return (
-    <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-yellow-400 animate-spin" />
+    <div className="rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 animate-pulse">
+      <div className="h-2.5 w-16 bg-white/10 rounded-full mb-4" />
+      <div className="h-7 w-28 bg-white/10 rounded-lg mb-1.5" />
+      <div className="h-2.5 w-10 bg-white/10 rounded-full mb-4" />
+      <div className="h-5 w-20 bg-white/[0.07] rounded-full" />
+    </div>
   );
 }
 
+function ChartSkeleton() {
+  return (
+    <div className="rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 animate-pulse">
+      <div className="flex justify-between mb-5">
+        <div>
+          <div className="h-3 w-24 bg-white/10 rounded-full mb-2" />
+          <div className="h-2.5 w-36 bg-white/[0.07] rounded-full" />
+        </div>
+        <div className="h-8 w-24 bg-white/[0.07] rounded-xl" />
+      </div>
+      <div className="h-[160px] bg-white/[0.04] rounded-xl" />
+    </div>
+  );
+}
+
+/* ─── main page ───────────────────────────────────────────── */
+
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, vault, pet, positions, setVault, setPet, setPositions, addToast } =
+  const { user, vault, positions, setVault, setPet, setPositions, addToast } =
     useYoldrStore();
 
   const [isLoading, setIsLoading] = useState(true);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState("10");
-  const [selectedPetType, setSelectedPetType] = useState("Griffin");
   const [isDepositing, setIsDepositing] = useState(false);
   const [depositError, setDepositError] = useState("");
   const [liveYield, setLiveYield] = useState(0);
   const [flowBalance, setFlowBalance] = useState<number | null>(null);
 
-  // Daily feed state — stored in localStorage with date key
-  const [fedToday, setFedToday] = useState(false);
-  const [feedPop, setFeedPop] = useState(false);
-
-  useEffect(() => {
-    const today = new Date().toDateString();
-    setFedToday(localStorage.getItem("yoldr_fed") === today);
-  }, []);
-
-  function handleFeedPet() {
-    if (fedToday) return;
-    const today = new Date().toDateString();
-    localStorage.setItem("yoldr_fed", today);
-    setFedToday(true);
-    setFeedPop(true);
-    addToast({ message: "🐾 You fed your pet! +10 XP (next login refreshes)", type: "success" });
-    setTimeout(() => setFeedPop(false), 2000);
-  }
-
+  /* ── data fetching ── */
   const fetchData = useCallback(async () => {
     if (!user?.addr) return;
     try {
@@ -131,6 +97,7 @@ export default function DashboardPage() {
         fcl.query({ cadence: SCRIPTS.getPositions, args: addrArgs }),
         fcl.query({ cadence: SCRIPTS.getFlowBalance, args: addrArgs }),
       ]);
+
       if (balanceData !== undefined) setFlowBalance(parseFloat(balanceData));
 
       if (vaultData) {
@@ -163,8 +130,6 @@ export default function DashboardPage() {
       }
 
       if (Array.isArray(positionsData)) {
-        // Base positions from chain (openPrice is correct; currentPrice/returnPct
-        // come from the stale MockPriceFeed so we override them below).
         const base = positionsData.map((p: {
           id: string; shieldType: string; asset: string; leverage: string;
           depositAmount: string; openTimestamp: string; openPrice: string;
@@ -181,19 +146,15 @@ export default function DashboardPage() {
           returnPct: parseFloat(p.returnPct),
         }));
 
-        // Overlay live prices from external APIs
         const uniqueAssets = Array.from(new Set(base.map((p) => p.asset)));
         try {
           const livePrices = await fetchLivePrices(uniqueAssets);
           setPositions(base.map((p) => {
             const livePrice = livePrices[p.asset];
             if (!livePrice || p.openPrice === 0) return p;
-            const returnPct = ((livePrice - p.openPrice) / p.openPrice) * p.leverage;
-            return { ...p, currentPrice: livePrice, returnPct };
+            return { ...p, currentPrice: livePrice, returnPct: ((livePrice - p.openPrice) / p.openPrice) * p.leverage };
           }));
-        } catch {
-          setPositions(base); // fall back to on-chain prices if API is down
-        }
+        } catch { setPositions(base); }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -201,14 +162,11 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [addToast, user?.addr, setVault, setPet, setPositions]);
+  }, [user?.addr, setVault, setPet, setPositions]);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Auto-ping streak once per day (silently — no wallet popup needed, contract checks 24h)
+  // Auto-ping streak silently once per day
   useEffect(() => {
     if (!user?.addr) return;
     const key = `yoldr_streak_ping_${user.addr}`;
@@ -219,133 +177,65 @@ export default function DashboardPage() {
       cadence: TRANSACTIONS.pingStreak,
       args: (arg: any, t: any) => [arg(user.addr, t.Address)],
       limit: 100,
-    })
-    /* eslint-enable @typescript-eslint/no-explicit-any */.then(() => {
-      localStorage.setItem(key, today);
-      // Refresh vault data so streak count updates in UI
-      setTimeout(fetchData, 3000);
-    }).catch(() => {
-      // silently swallow — streak ping is best-effort
-    });
+    })/* eslint-enable @typescript-eslint/no-explicit-any */
+      .then(() => { localStorage.setItem(key, today); setTimeout(fetchData, 3000); })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.addr]);
 
-  // Poll every 10 seconds
   useEffect(() => {
-    const interval = setInterval(fetchData, 10_000);
-    return () => clearInterval(interval);
+    const id = setInterval(fetchData, 10_000);
+    return () => clearInterval(id);
   }, [fetchData]);
 
-  // Refetch immediately when user returns to this tab / navigates back from shields page
   useEffect(() => {
     const handler = () => { if (document.visibilityState === "visible") fetchData(); };
     document.addEventListener("visibilitychange", handler);
     window.addEventListener("focus", fetchData);
-    return () => {
-      document.removeEventListener("visibilitychange", handler);
-      window.removeEventListener("focus", fetchData);
-    };
+    return () => { document.removeEventListener("visibilitychange", handler); window.removeEventListener("focus", fetchData); };
   }, [fetchData]);
 
-  // Refresh live prices every 30 seconds without re-polling the whole chain
   useEffect(() => {
     const refresh = async () => {
       if (!positions.length) return;
-      const uniqueAssets = Array.from(new Set(positions.map((p) => p.asset)));
+      const assets = Array.from(new Set(positions.map((p) => p.asset)));
       try {
-        const livePrices = await fetchLivePrices(uniqueAssets);
+        const prices = await fetchLivePrices(assets);
         setPositions(positions.map((p) => {
-          const livePrice = livePrices[p.asset];
-          if (!livePrice || p.openPrice === 0) return p;
-          const returnPct = ((livePrice - p.openPrice) / p.openPrice) * p.leverage;
-          return { ...p, currentPrice: livePrice, returnPct };
+          const lp = prices[p.asset];
+          if (!lp || p.openPrice === 0) return p;
+          return { ...p, currentPrice: lp, returnPct: ((lp - p.openPrice) / p.openPrice) * p.leverage };
         }));
-      } catch { /* keep existing prices */ }
+      } catch { /* keep existing */ }
     };
     const id = setInterval(refresh, 30_000);
     return () => clearInterval(id);
   }, [positions, setPositions]);
 
-  // Client-side yield ticker — replicates contract's calculateAccruedYield locally so the
-  // number visibly ticks every second instead of only updating on each poll.
+  // Live yield ticker
   useEffect(() => {
-    if (!vault || vault.principal <= 0) {
-      setLiveYield(vault?.accruedYield ?? 0);
-      return;
-    }
-    const APY = 0.05;
-    const YEAR = 31_536_000;
+    if (!vault || vault.principal <= 0) { setLiveYield(vault?.accruedYield ?? 0); return; }
+    const APY = 0.05, YEAR = 31_536_000;
     const tick = () => {
-      const nowSec = Date.now() / 1000;
-      const elapsed = Math.max(0, nowSec - vault.lastHarvestTimestamp);
+      const elapsed = Math.max(0, Date.now() / 1000 - vault.lastHarvestTimestamp);
       setLiveYield(vault.principal * (APY / YEAR) * elapsed + vault.yieldBalance);
     };
-    tick(); // immediate first update
+    tick();
     const id = setInterval(tick, 1_000);
     return () => clearInterval(id);
   }, [vault]);
 
-  async function handleDeposit() {
-    const amount = parseFloat(depositAmount);
-    if (isNaN(amount) || amount < 1 || amount > 1000) {
-      setDepositError("Enter a FLOW amount between 1 and 1000.");
-      return;
-    }
-    setDepositError("");
-    setIsDepositing(true);
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const txId = await fcl.mutate({
-        cadence: TRANSACTIONS.deposit,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        args: (arg: any, t: any) => [
-          arg(amount.toFixed(8), t.UFix64),
-          arg(selectedPetType, t.String),
-        ],
-        limit: 999,
-      });
-      addToast({ message: `Deposit submitted! Tx: ${String(txId).slice(0, 10)}…`, type: "info" });
-      await fcl.tx(txId).onceSealed();
-      addToast({ message: `Vault created! Your ${selectedPetType} pet is ready.`, type: "success" });
-      setShowDepositModal(false);
-      setIsLoading(true);
-      await fetchData();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Transaction failed";
-      setDepositError(message.slice(0, 120));
-      addToast({ message: "Deposit failed. Please try again.", type: "warning" });
-    } finally {
-      setIsDepositing(false);
-    }
-  }
-
-  async function handleSignOut() {
-    await fcl.unauthenticate();
-  }
-
-  const yieldPct =
-    vault && vault.principal > 0
-      ? Math.min(100, (liveYield / vault.principal) * 100)
-      : 0;
-
-  const activePosition = positions[0] ?? null;
-
-  const activeReturnPct = activePosition?.returnPct ?? 0;
-
-  // ── Analytics chart data ─────────────────────────────────────────────────
-  const { chartData, nowLabel, proj30d, daysSinceHarvest } = useMemo(() => {
-    if (!vault || vault.principal <= 0) {
-      return { chartData: [], nowLabel: "Now", proj30d: 0, daysSinceHarvest: 0 };
-    }
-    const APY = 0.05;
-    const YEAR = 31_536_000;
+  // Chart data
+  const { chartData, nowLabel, proj30d, daysSinceDeposit } = useMemo(() => {
+    if (!vault || vault.principal <= 0)
+      return { chartData: [], nowLabel: "Now", proj30d: 0, daysSinceDeposit: 0 };
+    const APY = 0.05, YEAR = 31_536_000;
     const rate = vault.principal * APY / YEAR;
     const now = Date.now() / 1000;
-    const start = vault.lastHarvestTimestamp;
-    const elapsed = Math.max(0, now - start);
+    const elapsed = Math.max(0, now - vault.lastHarvestTimestamp);
     const daysElapsed = elapsed / 86400;
     const totalDays = daysElapsed + 30;
-    const steps = 20;
+    const steps = 28;
 
     const data = Array.from({ length: steps + 1 }, (_, i) => {
       const days = totalDays * i / steps;
@@ -353,990 +243,590 @@ export default function DashboardPage() {
       const isPast = days <= daysElapsed;
       return {
         label: days < 0.1 ? "0d" : `${Math.round(days)}d`,
-        historical: isPast ? yieldVal : undefined,
+        earned: isPast ? yieldVal : undefined,
         projected: !isPast ? yieldVal : undefined,
       };
     });
 
-    // Ensure continuity at the "now" boundary
-    const nowIdx = data.findIndex((_, i) => {
-      const days = totalDays * i / steps;
-      return days > daysElapsed;
-    });
-    if (nowIdx > 0) {
-      const boundary = data[nowIdx - 1];
-      data[nowIdx] = { ...data[nowIdx], historical: boundary.historical };
-    }
-
-    const nl = data[nowIdx > 0 ? nowIdx - 1 : 0]?.label ?? "Now";
-    const p30 = rate * 30 * 86400;
+    const nowIdx = data.findIndex((_, i) => (totalDays * i / steps) > daysElapsed);
+    if (nowIdx > 0) data[nowIdx] = { ...data[nowIdx], earned: data[nowIdx - 1].earned };
 
     return {
       chartData: data,
-      nowLabel: nl,
-      proj30d: p30,
-      daysSinceHarvest: Math.round(daysElapsed),
+      nowLabel: data[nowIdx > 0 ? nowIdx - 1 : 0]?.label ?? "Now",
+      proj30d: rate * 30 * 86400,
+      daysSinceDeposit: Math.round(daysElapsed),
     };
   }, [vault]);
 
-  const pnlBarData = useMemo(() =>
-    positions.map((p) => ({
-      name: p.shieldType.replace(/_/g, " "),
-      pnl: parseFloat((p.returnPct * 100).toFixed(2)),
-      asset: p.asset,
-    })),
-  [positions]);
+  /* ── actions ── */
+  async function handleDeposit() {
+    const amount = parseFloat(depositAmount);
+    if (isNaN(amount) || amount < 1 || amount > 1000) { setDepositError("Enter a FLOW amount between 1 and 1000."); return; }
+    setDepositError("");
+    setIsDepositing(true);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const txId = await (fcl.mutate as any)({
+        cadence: TRANSACTIONS.deposit,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        args: (arg: any, t: any) => [arg(amount.toFixed(8), t.UFix64), arg("Griffin", t.String)],
+        limit: 999,
+      });
+      addToast({ message: `Deposit submitted! Tx: ${String(txId).slice(0, 10)}…`, type: "info" });
+      await fcl.tx(txId).onceSealed();
+      addToast({ message: "Vault created! Your FLOW is safely deposited.", type: "success" });
+      setShowDepositModal(false);
+      setIsLoading(true);
+      await fetchData();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Transaction failed";
+      setDepositError(message.slice(0, 120));
+      addToast({ message: "Deposit failed. Please try again.", type: "warning" });
+    } finally { setIsDepositing(false); }
+  }
 
-  const desktopFocusPosition = activePosition ?? positions[0] ?? null;
-  const desktopMomentumLabel = activeReturnPct >= 0.1
-    ? "Momentum"
-    : activeReturnPct >= 0
-      ? "Stable"
-      : "Pressure";
+  async function handleSignOut() { await fcl.unauthenticate(); }
 
-  const storyBeat = useMemo(() => {
-    if (!vault) {
-      return {
-        eyebrow: "Prologue",
-        title: "Your vault story has not started yet.",
-        body: "Deposit FLOW, choose a companion, and the dashboard becomes a living journal of growth, risk, and rewards.",
-      };
-    }
+  const yieldPct = vault && vault.principal > 0 ? Math.min(100, (liveYield / vault.principal) * 100) : 0;
 
-    if (positions.length === 0) {
-      return {
-        eyebrow: "Chapter One",
-        title: "The vault is earning quietly while the pet waits for a shield.",
-        body: "Your principal is protected and compounding. The next plot point is choosing a shield to turn passive yield into an active campaign.",
-      };
-    }
-
-    if (activeReturnPct >= 0.1) {
-      return {
-        eyebrow: "Momentum",
-        title: "Your companion is pushing through a strong run.",
-        body: "Yield is stacking in the background while the active shield is adding conviction. This is the part of the story where the vault feels alive.",
-      };
-    }
-
-    if (activeReturnPct >= 0) {
-      return {
-        eyebrow: "Steady Climb",
-        title: "The vault is holding formation.",
-        body: "Returns are modest but healthy. Your pet, principal, and shield are all moving in sync without taking unnecessary heat.",
-      };
-    }
-
-    return {
-      eyebrow: "Tension",
-      title: "The shield is absorbing pressure while the vault stays intact.",
-      body: "The dashboard is built to make this moment readable: principal stays safe, yield keeps accruing, and position health shows how much room you still have.",
-    };
-  }, [activeReturnPct, positions.length, vault]);
-
+  /* ─────────────────────────── render ────────────────────── */
   return (
-    <div className="bg-[#0F172A] min-h-screen lg:h-screen lg:overflow-hidden flex flex-col">
-      {/* ── Storytelling deposit loading screen ── */}
-      <DepositLoadingScreen show={isDepositing} petType={selectedPetType} amount={depositAmount} />
+    <div className="bg-[#0A0F1E] min-h-screen">
+      <DepositLoadingScreen show={isDepositing} petType="Griffin" amount={depositAmount} />
 
-      {/* ── Top bar: Header + Streak (fixed height, full width) ── */}
-      <div className="shrink-0 px-4 lg:hidden lg:px-8 pt-4 pb-3 border-b border-white/5">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <motion.h1
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="font-orbitron font-bold text-xl shimmer-text tracking-widest"
-          >
+      {/* ══ Sticky header ══ */}
+      <header className="sticky top-0 z-30 border-b border-white/[0.05] bg-[#0A0F1E]/80 backdrop-blur-xl">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+          {/* Logo */}
+          <span className="font-orbitron font-bold text-base shimmer-text tracking-widest shrink-0">
             YOLDR
-          </motion.h1>
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-            {/* Desktop nav links */}
-            <div className="hidden lg:flex items-center gap-1 mr-3">
+          </span>
+
+          {/* Right side */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="hidden sm:flex items-center">
               {[
                 { label: "Shields", href: "/app/shields" },
-                { label: "Badges", href: "/app/badges" },
-                { label: "Ranks", href: "/app/leaderboard" },
+                { label: "Leaderboard", href: "/app/leaderboard" },
               ].map((item) => (
                 <button
                   key={item.href}
                   onClick={() => router.push(item.href)}
-                  className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer font-medium"
+                  className="text-xs text-slate-500 hover:text-slate-200 px-3 py-1.5 rounded-lg hover:bg-white/[0.05] transition-colors duration-150 cursor-pointer font-medium"
                 >
                   {item.label}
                 </button>
               ))}
             </div>
+
             {user?.addr && (
               <a
                 href={`https://testnet.flowscan.io/account/${user.addr}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="max-w-full truncate text-xs text-slate-400 glass px-3 py-1.5 rounded-full border border-white/8 font-mono hover:text-white hover:border-white/20 transition-colors"
-                title="View on FlowScan"
+                title={user.addr}
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.07] px-3 py-1.5 rounded-lg font-mono transition-all duration-150 cursor-pointer"
               >
-                {truncateAddr(user.addr)} ↗
+                {truncateAddr(user.addr)}
+                <ArrowRight size={10} className="rotate-[-45deg] opacity-60" />
               </a>
             )}
+
             <button
               onClick={handleSignOut}
-              className="text-xs text-slate-500 hover:text-slate-300 glass px-3 py-1.5 rounded-full border border-white/8 transition-colors cursor-pointer"
+              className="text-xs text-slate-600 hover:text-slate-300 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] px-3 py-1.5 rounded-lg transition-all duration-150 cursor-pointer"
             >
               Sign out
             </button>
           </div>
         </div>
-        {vault && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <StreakBar streak={vault.streakCount} xp={vault.xpPoints} level={Math.floor(vault.xpPoints / 100) + 1} />
+      </header>
+
+      {/* ══ Main ══ */}
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-7 pb-16">
+
+        {/* ── Skeleton loading ── */}
+        {isLoading && (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div className="animate-pulse">
+                <div className="h-4 w-24 bg-white/10 rounded-lg mb-2" />
+                <div className="h-3 w-40 bg-white/[0.07] rounded-lg" />
+              </div>
+              <div className="h-7 w-20 bg-white/[0.07] rounded-full animate-pulse" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <StatSkeleton /><StatSkeleton /><StatSkeleton />
+            </div>
+            <div className="h-1 bg-white/[0.04] rounded-full mb-6" />
+            <div className="flex gap-3 mb-6">
+              <div className="flex-1 h-12 bg-white/[0.07] rounded-xl animate-pulse" />
+              <div className="flex-1 h-12 bg-white/[0.04] rounded-xl animate-pulse" />
+            </div>
+            <ChartSkeleton />
+          </div>
+        )}
+
+        {/* ── No vault ── */}
+        {!isLoading && !vault && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col items-center justify-center py-24 text-center"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-[#1E293B] border border-white/[0.07] flex items-center justify-center mb-5 shadow-xl">
+              <Landmark size={28} className="text-amber-500/70" strokeWidth={1.5} />
+            </div>
+            <h2 className="font-orbitron font-bold text-white text-xl mb-2">
+              Start earning safely
+            </h2>
+            <p className="text-slate-400 text-sm mb-1.5 max-w-xs leading-relaxed">
+              Deposit FLOW. Your principal is locked in the vault — permanently safe.
+            </p>
+            <p className="text-slate-600 text-xs mb-8 max-w-xs leading-relaxed">
+              The yield it generates funds leveraged Shield positions on BTC, ETH, Gold &amp; FLOW.
+              You can only ever lose the yield.
+            </p>
+            <button
+              onClick={() => setShowDepositModal(true)}
+              className="inline-flex items-center gap-2 px-7 py-3 rounded-xl font-orbitron font-bold text-sm text-black cursor-pointer transition-all duration-200 hover:brightness-110 active:scale-95"
+              style={{ background: "linear-gradient(135deg, #F59E0B, #FBBF24)", boxShadow: "0 0 28px rgba(245,158,11,0.22)" }}
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              Deposit FLOW
+            </button>
+            {flowBalance !== null && (
+              <p className="text-slate-700 text-xs mt-4 flex items-center gap-1.5">
+                <Wallet size={11} /> {flowBalance.toFixed(4)} FLOW in wallet
+              </p>
+            )}
           </motion.div>
         )}
-      </div>
 
-      {/* ── Loading state ── */}
-      {isLoading && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-4">
-          <Spinner />
-          <p className="text-slate-500 text-sm">Loading your vault…</p>
-        </div>
-      )}
-
-      {!isLoading && (
-        /* ── Body: sidebar | main — fills remaining screen height on desktop ── */
-        <div className="flex-1 min-h-0 overflow-hidden">
-
-          <div className="hidden lg:flex h-full overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.09),transparent_28%),radial-gradient(circle_at_top_right,rgba(139,92,246,0.14),transparent_34%),#0b1020]">
-            <aside className="w-[320px] shrink-0 border-r border-white/6 px-5 py-5">
-              <div className="flex h-full flex-col gap-5">
-                <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-orange-400 text-sm font-orbitron font-bold text-[#0b1020]">
-                      YO
-                    </div>
-                    <div>
-                      <p className="font-orbitron text-base text-white">Yoldr Questboard</p>
-                      <p className="text-[11px] text-slate-500">Gamified yield with principal protection</p>
-                    </div>
-                  </div>
-                  {vault && (
-                    <div className="mt-5 rounded-[22px] border border-amber-400/15 bg-amber-500/8 px-4 py-3">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-amber-200/80">Current chapter</p>
-                      <p className="mt-2 text-lg font-semibold text-white">
-                        {positions.length > 0 ? "Shield run in progress" : "Vault charged and ready"}
-                      </p>
-                      <p className="mt-1 text-sm leading-6 text-slate-300">
-                        {positions.length > 0
-                          ? "Your pet is actively scouting the market while your yield keeps funding the run."
-                          : "You have protected capital on deck. The next move is choosing a shield."}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-[28px] border border-white/8 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.18),transparent_55%),linear-gradient(180deg,rgba(15,23,42,0.92),rgba(11,16,32,0.96))] p-5">
-                  {pet ? (
-                    <>
-                      <div className="flex justify-center">
-                        <VaultPetDisplay
-                          pet={pet}
-                          size="md"
-                          returnPct={activeReturnPct}
-                          onFeed={!fedToday ? handleFeedPet : undefined}
-                        />
-                      </div>
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
-                          <p className="text-[11px] text-slate-500">Streak</p>
-                          <p className="mt-1 font-orbitron text-2xl text-white">{vault?.streakCount ?? 0}</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
-                          <p className="text-[11px] text-slate-500">XP</p>
-                          <p className="mt-1 font-orbitron text-2xl text-white">{vault?.xpPoints ?? 0}</p>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="rounded-[22px] border border-dashed border-white/10 p-6 text-center">
-                      <div className="text-5xl opacity-40">🐾</div>
-                      <p className="mt-3 text-sm text-slate-400">Deposit to summon your first companion.</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Quest log</p>
-                  <div className="mt-4 space-y-3">
-                    <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3">
-                      <p className="text-sm text-white">Protect the treasury</p>
-                      <p className="mt-1 text-[12px] text-slate-500">
-                        {vault ? `${vault.principal.toFixed(2)} FLOW is protected in the vault.` : "Start by depositing FLOW."}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3">
-                      <p className="text-sm text-white">Feed the companion</p>
-                      <p className="mt-1 text-[12px] text-slate-500">
-                        {fedToday ? "Daily feed completed. Streak kept alive." : "Tap your pet card to collect today’s XP."}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-3">
-                      <p className="text-sm text-white">Enter the arena</p>
-                      <p className="mt-1 text-[12px] text-slate-500">
-                        {positions.length > 0 ? `${positions.length} shield run${positions.length > 1 ? "s" : ""} active.` : "Pick a shield to start your first run."}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-auto rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Wallet</p>
-                  <p className="mt-3 font-orbitron text-3xl text-white">{flowBalance !== null ? flowBalance.toFixed(4) : "0.0000"}</p>
-                  <p className="text-sm text-slate-500">Available FLOW outside the vault</p>
-                </div>
-              </div>
-            </aside>
-
-            <main className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Dashboard</p>
-                  <h2 className="mt-2 text-[2.3rem] font-semibold tracking-tight text-white">Your Yield Adventure</h2>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => router.push("/app/shields")}
-                    className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-sm text-slate-300 hover:text-white"
-                  >
-                    Pick Shield
-                  </button>
-                  <button
-                    onClick={() => setShowDepositModal(true)}
-                    className="rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-400 px-5 py-2.5 text-sm font-semibold text-[#0b1020]"
-                  >
-                    Deposit FLOW
-                  </button>
-                  <button
-                    onClick={handleSignOut}
-                    className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-sm text-slate-500 hover:text-white"
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-5 grid grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] gap-5">
-                <section className="rounded-[30px] border border-white/8 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_32%),linear-gradient(180deg,#14182a,#0b1020)] p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-[11px] uppercase tracking-[0.22em] text-amber-200/70">Vault status</p>
-                      <h3 className="mt-2 text-[2rem] font-semibold text-white">
-                        {positions.length > 0 ? "The arena is live" : "Your vault is waiting for a run"}
-                      </h3>
-                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                        Principal stays safe in the treasury, yield keeps building, and every shield position becomes a visible run your companion can react to.
-                      </p>
-                    </div>
-                    <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-right">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-amber-200/80">30D reward</p>
-                      <p className="mt-1 font-orbitron text-2xl text-white">{proj30d.toFixed(4)} FLOW</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 grid grid-cols-4 gap-4">
-                    <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
-                      <p className="text-[11px] text-slate-500">Principal</p>
-                      <p className="mt-2 font-orbitron text-3xl text-white">{vault ? vault.principal.toFixed(2) : "0.00"}</p>
-                    </div>
-                    <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
-                      <p className="text-[11px] text-slate-500">Live Yield</p>
-                      <p className="mt-2 font-orbitron text-3xl text-amber-300">{liveYield.toFixed(4)}</p>
-                    </div>
-                    <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
-                      <p className="text-[11px] text-slate-500">Momentum</p>
-                      <p className="mt-2 font-orbitron text-3xl text-white">{desktopMomentumLabel}</p>
-                    </div>
-                    <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
-                      <p className="text-[11px] text-slate-500">Level</p>
-                      <p className="mt-2 font-orbitron text-3xl text-white">{vault ? Math.floor(vault.xpPoints / 100) + 1 : 1}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 h-[220px] rounded-[24px] border border-white/8 bg-[#0b1020]/70 p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Reward arc</p>
-                        <p className="text-sm text-white">Yield growth and projection</p>
-                      </div>
-                      <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[11px] text-slate-300">5% APY</span>
-                    </div>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -22, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="desktopHistGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
-                            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="desktopProjGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
-                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v.toFixed(3)} />
-                        <Tooltip
-                          contentStyle={{ background: "#0B1020", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 11 }}
-                          labelStyle={{ color: "#94A3B8" }}
-                          formatter={(value: unknown) => {
-                            const normalized = Array.isArray(value) ? value[0] : value;
-                            return [`${Number(normalized ?? 0).toFixed(6)} FLOW`, "Yield"];
-                          }}
-                        />
-                        <ReferenceLine x={nowLabel} stroke="#f59e0b" strokeDasharray="4 4" strokeOpacity={0.6} />
-                        <Area type="monotone" dataKey="historical" stroke="#f59e0b" strokeWidth={2} fill="url(#desktopHistGrad)" dot={false} />
-                        <Area type="monotone" dataKey="projected" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 4" fill="url(#desktopProjGrad)" dot={false} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </section>
-
-                <aside className="flex flex-col gap-5">
-                  <div className="rounded-[30px] border border-violet-400/18 bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.28),transparent_52%),linear-gradient(180deg,#131125,#0b1020)] p-5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] uppercase tracking-[0.22em] text-violet-200/70">Quest objective</p>
-                      <span className="rounded-full bg-violet-200 px-3 py-1 text-[11px] font-medium text-[#0b1020]">
-                        {positions.length > 0 ? "Active" : "Ready"}
-                      </span>
-                    </div>
-                    <h3 className="mt-4 text-2xl font-semibold text-white">
-                      {positions.length > 0 ? "Protect the current run" : "Launch your first shield"}
-                    </h3>
-                    <p className="mt-3 text-sm leading-6 text-slate-300">
-                      {positions.length > 0
-                        ? "Watch position health, keep your streak alive, and let your pet read the market while yield compounds."
-                        : "Your vault is ready. Pick a shield to turn passive yield into an active game loop."}
-                    </p>
-                    <div className="mt-5 space-y-3">
-                      <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3">
-                        <p className="text-[11px] text-slate-500">Days active</p>
-                        <p className="mt-1 font-orbitron text-2xl text-white">{daysSinceHarvest}d</p>
-                      </div>
-                      <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3">
-                        <p className="text-[11px] text-slate-500">Open runs</p>
-                        <p className="mt-1 font-orbitron text-2xl text-white">{positions.length}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[30px] border border-white/8 bg-white/[0.03] p-5">
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Quick links</p>
-                    <div className="mt-4 grid grid-cols-3 gap-3">
-                      <button
-                        onClick={() => router.push("/app/shields")}
-                        className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-white"
-                      >
-                        Shields
-                      </button>
-                      <button
-                        onClick={() => router.push("/app/badges")}
-                        className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-white"
-                      >
-                        Badges
-                      </button>
-                      <button
-                        onClick={() => router.push("/app/leaderboard")}
-                        className="rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-white"
-                      >
-                        Ranks
-                      </button>
-                    </div>
-                  </div>
-                </aside>
-              </div>
-
-              <section className="mt-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Shield arena</p>
-                    <h3 className="mt-2 text-[2rem] font-semibold text-white">Live runs</h3>
-                  </div>
-                  {desktopFocusPosition && (
-                    <button
-                      onClick={() => router.push(`/app/position/${desktopFocusPosition.id}`)}
-                      className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-2.5 text-sm text-white"
-                    >
-                      View active run
-                    </button>
-                  )}
-                </div>
-
-                {positions.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-4">
-                    {positions.map((pos) => {
-                      const badge = getShieldBadge(pos.shieldType);
-                      return (
-                        <button
-                          key={pos.id}
-                          type="button"
-                          onClick={() => router.push(`/app/position/${pos.id}`)}
-                          className="overflow-hidden rounded-[28px] border border-white/8 bg-[radial-gradient(circle_at_bottom_right,rgba(139,92,246,0.12),transparent_34%),linear-gradient(180deg,#12172a,#0b1020)] p-5 text-left transition-transform hover:-translate-y-0.5"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <span className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border text-[12px] font-orbitron font-bold tracking-[0.2em] ${badge.tone}`}>
-                                {badge.initials}
-                              </span>
-                              <div className="min-w-0">
-                                <p className="truncate text-base font-semibold text-white">{pos.shieldType.replace(/_/g, " ")}</p>
-                                <p className="text-[12px] text-slate-500">{pos.asset} · {pos.leverage}x</p>
-                              </div>
-                            </div>
-                            <span className={`font-orbitron text-lg ${pos.returnPct >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                              {formatPercent(pos.returnPct * 100)}
-                            </span>
-                          </div>
-
-                          <div className="mt-6 grid grid-cols-2 gap-3">
-                            <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3">
-                              <p className="text-[11px] text-slate-500">Open price</p>
-                              <p className="mt-1 font-orbitron text-xl text-white">{pos.openPrice.toFixed(2)}</p>
-                            </div>
-                            <div className="rounded-2xl border border-white/6 bg-white/[0.03] p-3">
-                              <p className="text-[11px] text-slate-500">Current price</p>
-                              <p className="mt-1 font-orbitron text-xl text-white">{pos.currentPrice.toFixed(2)}</p>
-                            </div>
-                          </div>
-
-                          <div className="mt-5">
-                            <div className="mb-2 flex items-center justify-between text-[12px] text-slate-500">
-                              <span>Position health</span>
-                              <span>{pos.depositAmount.toFixed(4)} FLOW</span>
-                            </div>
-                            <div className="progress-bar">
-                              <div
-                                className={`h-full rounded-full ${
-                                  pos.returnPct >= 0.1
-                                    ? "bg-gradient-to-r from-emerald-500 to-green-300"
-                                    : pos.returnPct >= 0
-                                      ? "bg-gradient-to-r from-yellow-500 to-amber-300"
-                                      : "bg-gradient-to-r from-rose-600 to-rose-400"
-                                }`}
-                                style={{ width: `${Math.min(100, Math.max(6, 50 + pos.returnPct * 100))}%` }}
-                              />
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="rounded-[30px] border border-dashed border-white/8 bg-white/[0.02] p-10 text-center">
-                    <p className="text-lg text-white">No runs in the arena yet</p>
-                    <p className="mt-2 text-sm text-slate-500">Choose a shield to turn your protected vault into a playable strategy loop.</p>
-                  </div>
-                )}
-              </section>
-            </main>
-          </div>
-
-          <div className="flex h-full flex-col lg:hidden lg:w-[310px] xl:w-[340px] shrink-0 overflow-y-auto scrollbar-hide
-                          px-4 lg:px-5 pt-4 pb-6 lg:border-r lg:border-white/5">
-
-            {/* Pet display */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.15 }}
-              className="flex justify-center mb-3"
-            >
-              {pet ? (
-                <div className="relative">
-                  <VaultPetDisplay
-                    pet={pet}
-                    size="lg"
-                    returnPct={activeReturnPct}
-                    onFeed={!fedToday ? handleFeedPet : undefined}
-                  />
-                  {!fedToday && (
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 1.5 }}
-                      className="text-center text-xs text-slate-600 mt-1"
-                    >
-                      tap to feed · earns streak XP
-                    </motion.p>
-                  )}
-                  <AnimatePresence>
-                    {feedPop && (
-                      <motion.div
-                        initial={{ opacity: 1, y: 0, scale: 0.8 }}
-                        animate={{ opacity: 0, y: -48, scale: 1.2 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 1.2, ease: "easeOut" }}
-                        className="absolute top-0 left-1/2 -translate-x-1/2 text-2xl pointer-events-none"
-                      >
-                        ✨+10 XP
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <div
-                    className="w-40 h-40 rounded-full border-2 border-dashed border-yellow-500/20 flex items-center justify-center"
-                    style={{ boxShadow: "0 0 30px rgba(245,158,11,0.08)" }}
-                  >
-                    <span className="text-5xl opacity-30">🐾</span>
-                  </div>
-                  <p className="text-slate-500 text-xs">No pet yet</p>
-                </div>
-              )}
-            </motion.div>
-
-            {/* Story card */}
-            {vault && (
-              <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.18 }}
-                className="relative overflow-hidden rounded-[28px] p-5 mb-4 border border-amber-400/15 lg:hidden"
-                style={{
-                  background: "radial-gradient(circle at top left, rgba(245,158,11,0.16), transparent 38%), linear-gradient(180deg, rgba(30,41,59,0.92), rgba(15,23,42,0.95))",
-                  boxShadow: "0 18px 50px rgba(0,0,0,0.22)",
-                }}
-              >
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/60 to-transparent" />
-                <p className="text-[10px] uppercase tracking-[0.32em] text-amber-300/60 mb-2">{storyBeat.eyebrow}</p>
-                <h2 className="text-white text-lg leading-tight font-semibold mb-2 text-balance">{storyBeat.title}</h2>
-                <p className="text-sm leading-6 text-slate-300">{storyBeat.body}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-slate-300">
-                    {formatStoryAge(daysSinceHarvest)}
-                  </span>
-                  <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] text-emerald-300">
-                    Principal protected
-                  </span>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Vault card */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="glass rounded-[28px] p-5 mb-4 overflow-hidden"
-              style={{ border: "1px solid rgba(245,158,11,0.25)", boxShadow: "0 0 30px rgba(245,158,11,0.05)" }}
-            >
-              {vault ? (
-                <>
-                  <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between lg:flex-col lg:items-start">
-                    <div className="min-w-0">
-                      <p className="text-slate-400 text-xs mb-1">Your Principal</p>
-                      <div className="flex min-w-0 flex-wrap items-end gap-x-2 gap-y-1">
-                        <span className="min-w-0 font-orbitron font-bold text-[2.5rem] text-green-400 leading-[0.9] lg:text-[2.2rem] xl:text-[2.5rem]">
-                          <AnimatedNumber value={vault.principal} decimals={4} />
-                        </span>
-                        <span className="text-green-500 text-sm">FLOW</span>
-                      </div>
-                    </div>
-                    <span className="inline-flex w-fit max-w-full items-center rounded-full bg-green-500/15 px-3 py-1.5 text-[11px] font-bold tracking-[0.22em] text-green-400 border border-green-500/25 font-orbitron">
-                      ALWAYS SAFE
-                    </span>
-                  </div>
-
-                  <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                    <div className="min-w-0 rounded-2xl border border-yellow-500/10 bg-yellow-500/5 px-4 py-3">
-                      <p className="text-slate-400 text-xs mb-0.5">Accrued Yield</p>
-                      <span className="block min-w-0 font-orbitron font-bold text-yellow-400 text-lg leading-tight">
-                        +{liveYield.toFixed(6)}
-                        <span className="text-yellow-500/70 text-xs ml-1">FLOW</span>
-                      </span>
-                    </div>
-                    <div className="min-w-0 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 sm:text-right">
-                      <p className="text-slate-400 text-xs mb-0.5">Total Earned</p>
-                      <span className="block min-w-0 text-slate-300 text-sm font-orbitron leading-tight">
-                        <AnimatedNumber value={vault.totalYieldEarned} decimals={4} />
-                        <span className="text-slate-500 text-xs ml-1">FLOW</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-                      <span>Yield progress</span>
-                      <span className="text-yellow-400">{yieldPct.toFixed(4)}% of principal</span>
-                    </div>
-                    <div className="progress-bar">
-                      <motion.div
-                        className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-400"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.max(0.5, yieldPct)}%` }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                      />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-4">
-                  <div className="text-4xl mb-3">🏦</div>
-                  <h3 className="font-orbitron font-bold text-white text-base mb-1.5">No vault yet</h3>
-                  <p className="text-slate-400 text-sm mb-5">
-                    Deposit FLOW to start earning yield and protect your savings.
-                  </p>
-                  <button
-                    onClick={() => setShowDepositModal(true)}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-orbitron font-bold text-sm text-black cursor-pointer transition-all hover:scale-105 active:scale-95"
-                    style={{ background: "linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)", boxShadow: "0 0 20px rgba(245,158,11,0.3)" }}
-                  >
-                    Deposit FLOW to start
-                  </button>
-                </div>
-              )}
-            </motion.div>
-
-            {/* FLOW Wallet Balance */}
-            {flowBalance !== null && (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                className="glass rounded-2xl px-4 py-3 mb-4 flex items-center justify-between"
-                style={{ border: "1px solid rgba(99,102,241,0.2)" }}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">◎</span>
-                  <span className="text-xs text-slate-400">Wallet Balance</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-orbitron font-bold text-indigo-300 text-sm">{flowBalance.toFixed(4)}</span>
-                  <span className="text-indigo-400/60 text-xs">FLOW</span>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Action buttons */}
-            {vault && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 lg:hidden"
-              >
-                <button
-                  onClick={() => setShowDepositModal(true)}
-                  className="flex-1 py-3 rounded-xl text-sm font-bold text-yellow-400 border border-yellow-500/30 bg-yellow-500/8 hover:bg-yellow-500/15 transition-all cursor-pointer"
-                >
-                  + Add FLOW
-                </button>
-                <button
-                  onClick={() => router.push("/app/shields")}
-                  className="flex-1 py-3 rounded-xl text-sm font-bold text-purple-300 border border-purple-500/30 bg-purple-500/8 hover:bg-purple-500/15 transition-all cursor-pointer"
-                >
-                  🛡️ Pick a Shield →
-                </button>
-              </motion.div>
-            )}
-          </div>
-          {/* ── end LEFT COLUMN ── */}
-
-          {/* ══ RIGHT MAIN — charts, analytics, positions ══ */}
-          <div className="flex-1 min-w-0 flex flex-col overflow-y-auto scrollbar-hide px-4 lg:px-7 pt-4 pb-8">
-            {vault && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.22 }}
-                className="hidden lg:flex items-center justify-end gap-3 mb-4"
-              >
-                <button
-                  onClick={() => setShowDepositModal(true)}
-                  className="min-w-[170px] py-3 rounded-xl text-sm font-bold text-yellow-400 border border-yellow-500/30 bg-yellow-500/8 hover:bg-yellow-500/15 transition-all cursor-pointer"
-                >
-                  + Add FLOW
-                </button>
-                <button
-                  onClick={() => router.push("/app/shields")}
-                  className="min-w-[190px] py-3 rounded-xl text-sm font-bold text-purple-300 border border-purple-500/30 bg-purple-500/8 hover:bg-purple-500/15 transition-all cursor-pointer"
-                >
-                  Pick a Shield →
-                </button>
-              </motion.div>
-            )}
-
-            {/* Analytics & Charts */}
-            {vault && vault.principal > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                className="mb-4"
-              >
-                <div className="mb-4 px-1">
-                  <p className="text-[11px] text-slate-500 font-semibold tracking-widest uppercase mb-2">
-                    Captain&apos;s Log
-                  </p>
-                  <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-                    <div className="max-w-2xl">
-                      <h2 className="text-xl lg:text-lg text-white font-semibold leading-tight text-balance">
-                        <span className="lg:hidden">A dashboard that reads like the state of your expedition, not a pile of stats.</span>
-                        <span className="hidden lg:inline">Vault overview</span>
-                      </h2>
-                      <p className="mt-2 text-sm leading-6 text-slate-400 lg:hidden">
-                        Track the calm parts, the tension, and the upside in sequence: vault growth first, shield pressure next, and open positions last.
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                      <div className="glass rounded-2xl px-4 py-3 border border-white/8 min-w-[120px]">
-                        <p className="text-[10px] text-slate-500 mb-0.5">APY</p>
-                        <p className="font-orbitron font-bold text-amber-400 text-sm">5.00%</p>
-                      </div>
-                      <div className="glass rounded-2xl px-4 py-3 border border-white/8 min-w-[120px]">
-                        <p className="text-[10px] text-slate-500 mb-0.5">Days Active</p>
-                        <p className="font-orbitron font-bold text-white text-sm">{daysSinceHarvest}d</p>
-                      </div>
-                      <div className="glass rounded-2xl px-4 py-3 border border-white/8 min-w-[120px]">
-                        <p className="text-[10px] text-slate-500 mb-0.5">30D Yield</p>
-                        <p className="font-orbitron font-bold text-yellow-400 text-sm">{proj30d.toFixed(4)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Yield Growth Chart */}
-                <div
-                  className="glass rounded-[28px] p-4 lg:p-5 mb-3 overflow-hidden"
-                  style={{ border: "1px solid rgba(245,158,11,0.15)" }}
-                >
-                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500 mb-1">Vault arc</p>
-                      <p className="text-sm text-slate-300 font-medium">Yield Growth · 30-Day Projection</p>
-                    </div>
-                    <span className="w-fit text-[10px] font-orbitron text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                      5% APY
-                    </span>
-                  </div>
-                  <div className="h-[130px] lg:h-[180px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="histGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.35} />
-                            <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
-                          </linearGradient>
-                          <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.25} />
-                            <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis dataKey="label" tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                        <YAxis tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v.toFixed(3)} />
-                        <Tooltip
-                          contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
-                          labelStyle={{ color: "#94A3B8" }}
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                          formatter={(v: any) => [`${(+v).toFixed(6)} FLOW`, ""]}
-                        />
-                        <ReferenceLine x={nowLabel} stroke="#F59E0B" strokeDasharray="3 3" strokeOpacity={0.6} label={{ value: "NOW", fill: "#F59E0B", fontSize: 8, position: "top" }} />
-                        <Area type="monotone" dataKey="historical" stroke="#F59E0B" strokeWidth={2} fill="url(#histGrad)" dot={false} connectNulls={false} isAnimationActive />
-                        <Area type="monotone" dataKey="projected" stroke="#8B5CF6" strokeWidth={1.5} strokeDasharray="4 3" fill="url(#projGrad)" dot={false} connectNulls={false} isAnimationActive />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="flex items-center gap-4 mt-2">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-0.5 bg-amber-400 rounded" />
-                      <span className="text-[10px] text-slate-500">Earned</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-0.5 rounded" style={{ background: "repeating-linear-gradient(90deg,#8B5CF6 0,#8B5CF6 3px,transparent 3px,transparent 6px)", width: 12 }} />
-                      <span className="text-[10px] text-slate-500">Projected</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Position P&L Bar Chart */}
-                {pnlBarData.length > 0 && (
-                  <div className="glass rounded-[28px] p-4 lg:p-5 mb-3 overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <div className="mb-3">
-                      <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500 mb-1">Pressure map</p>
-                      <p className="text-sm text-slate-300 font-medium">Shield P&amp;L</p>
-                    </div>
-                    <div style={{ height: Math.max(60, pnlBarData.length * 44) }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={pnlBarData} layout="vertical" margin={{ top: 0, right: 48, left: 4, bottom: 0 }}>
-                          <XAxis type="number" tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)}%`} />
-                          <YAxis type="category" dataKey="name" tick={{ fontSize: 9, fill: "#94A3B8" }} axisLine={false} tickLine={false} width={100} />
-                          <Tooltip
-                            contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 11 }}
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            formatter={(v: any) => [`${+v > 0 ? "+" : ""}${(+v).toFixed(2)}%`, "P&L"]}
-                          />
-                          <ReferenceLine x={0} stroke="rgba(255,255,255,0.1)" />
-                          <Bar dataKey="pnl" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                            {pnlBarData.map((entry, i) => (
-                              <Cell key={i} fill={entry.pnl >= 0 ? "#22C55E" : "#EF4444"} fillOpacity={0.85} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* Active position cards — 2-col grid on lg */}
-            {positions.length > 0 && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-                {positions.map((pos, i) => (
-                  <motion.div
-                    key={pos.id}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.35 + i * 0.08 }}
-                    className="glass rounded-[26px] p-4 border border-white/8 overflow-hidden"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="text-lg lg:hidden">{PET_EMOJI[pos.shieldType] ?? "🛡️"}</span>
-                        <span
-                          className={`hidden lg:inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-[12px] font-orbitron font-bold tracking-[0.2em] ${getShieldBadge(pos.shieldType).tone}`}
-                        >
-                          {getShieldBadge(pos.shieldType).initials}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-white font-bold text-sm">{pos.shieldType.replace(/_/g, " ")}</p>
-                          <p className="truncate text-slate-500 text-xs">{pos.asset} · {pos.leverage}x</p>
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className={`font-orbitron font-bold text-base ${pos.returnPct >= 0 ? "text-green-400" : "text-red-400"}`}>
-                          {pos.returnPct >= 0 ? "+" : ""}{(pos.returnPct * 100).toFixed(2)}%
-                        </p>
-                        <p className="text-slate-500 text-xs">P&amp;L</p>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap justify-between gap-2 text-xs text-slate-500 mb-1.5">
-                        <span>Position health</span>
-                        <span className="font-mono break-all">{pos.depositAmount.toFixed(4)} FLOW margin</span>
-                      </div>
-                      <div className="progress-bar">
-                        <motion.div
-                          className={`h-full rounded-full ${
-                            pos.returnPct >= 0.1 ? "bg-gradient-to-r from-green-500 to-emerald-400"
-                              : pos.returnPct >= 0 ? "bg-gradient-to-r from-yellow-500 to-amber-400"
-                              : "bg-gradient-to-r from-red-600 to-red-400"
-                          }`}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${Math.min(100, Math.max(5, 50 + pos.returnPct * 100))}%` }}
-                          transition={{ duration: 0.8 }}
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-slate-500">
-                      <span>Open @ {pos.openPrice.toFixed(2)}</span>
-                      <span>Now @ {pos.currentPrice.toFixed(2)}</span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-
-            {/* No positions prompt */}
-            {vault && positions.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="glass rounded-2xl p-4 border border-purple-500/20 text-center"
-                style={{ background: "rgba(139,92,246,0.05)" }}
-              >
-                <p className="text-slate-400 text-sm mb-3">No active Shield position yet.</p>
-                <button
-                  onClick={() => router.push("/app/shields")}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-orbitron font-bold text-sm text-white cursor-pointer transition-all hover:scale-105 active:scale-95"
-                  style={{ background: "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)", boxShadow: "0 0 20px rgba(139,92,246,0.3)" }}
-                >
-                  Pick a Shield →
-                </button>
-              </motion.div>
-            )}
-          </div>
-          {/* ── end RIGHT COLUMN ── */}
-
-        </div>
-      )}
-
-      {/* ── Deposit Modal ── */}
-      <AnimatePresence>
-        {showDepositModal && (
+        {/* ── Vault dashboard ── */}
+        {!isLoading && vault && (
           <>
-            {/* Backdrop */}
+            {/* Page title row */}
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="flex items-start justify-between mb-6"
+            >
+              <div>
+                <h1 className="font-orbitron font-bold text-white text-base mb-1">
+                  Your Vault
+                </h1>
+                <p className="text-slate-600 text-xs flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                  Flow Testnet · Principal-protected yield
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 bg-amber-500/[0.08] border border-amber-500/20 px-3 py-1.5 rounded-full">
+                <TrendingUp size={11} strokeWidth={2.5} />
+                5% APY
+              </span>
+            </motion.div>
+
+            {/* ── Stat cards ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35 }}
+              className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4"
+            >
+              {/* Principal */}
+              <div className="relative rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 min-w-0 overflow-hidden group">
+                {/* top accent */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500/70 via-emerald-500/30 to-transparent" />
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
+                  Principal
+                </p>
+                <p className="font-orbitron font-bold text-[1.6rem] leading-none text-emerald-400 mb-1 truncate">
+                  <AnimatedNumber value={vault.principal} decimals={2} />
+                </p>
+                <p className="text-[11px] text-slate-600 mb-3.5">FLOW</p>
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-500 bg-emerald-500/[0.08] border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                  <Lock size={8} strokeWidth={3} />
+                  Always safe
+                </span>
+              </div>
+
+              {/* Accrued Yield */}
+              <div className="relative rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 min-w-0 overflow-hidden group">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500/70 via-amber-500/30 to-transparent" />
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
+                  Accrued Yield
+                </p>
+                <p className="font-orbitron font-bold text-[1.6rem] leading-none text-amber-400 mb-1 truncate tabular-nums">
+                  +{liveYield.toFixed(6)}
+                </p>
+                <p className="text-[11px] text-slate-600 mb-3.5">FLOW</p>
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-500 bg-amber-500/[0.08] border border-amber-500/20 px-2 py-0.5 rounded-full">
+                  <Activity size={8} strokeWidth={2.5} />
+                  5% APY · live
+                </span>
+              </div>
+
+              {/* Total Earned */}
+              <div className="relative rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 min-w-0 overflow-hidden group">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-500/50 via-violet-500/20 to-transparent" />
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
+                  Total Earned
+                </p>
+                <p className="font-orbitron font-bold text-[1.6rem] leading-none text-slate-200 mb-1 truncate">
+                  <AnimatedNumber value={vault.totalYieldEarned} decimals={4} />
+                </p>
+                <p className="text-[11px] text-slate-600 mb-3.5">FLOW</p>
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 bg-white/[0.04] border border-white/[0.07] px-2 py-0.5 rounded-full">
+                  <Clock size={8} strokeWidth={2.5} />
+                  All time
+                </span>
+              </div>
+            </motion.div>
+
+            {/* Yield progress bar */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+              transition={{ delay: 0.1 }}
+              className="mb-7"
+            >
+              <div className="flex justify-between text-[10px] text-slate-700 mb-1.5">
+                <span>Yield accrued vs principal</span>
+                <span className="tabular-nums text-amber-600/70">{yieldPct.toFixed(5)}%</span>
+              </div>
+              <div className="h-[3px] rounded-full bg-white/[0.04] overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-400"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.max(0.4, yieldPct)}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                />
+              </div>
+            </motion.div>
+
+            {/* ── Action buttons ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15, duration: 0.3 }}
+              className="flex flex-col sm:flex-row gap-2.5 mb-8"
+            >
+              <button
+                onClick={() => setShowDepositModal(true)}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-xl font-orbitron font-bold text-sm text-black cursor-pointer transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg, #F59E0B, #FBBF24)", boxShadow: "0 0 24px rgba(245,158,11,0.18)" }}
+              >
+                <Plus size={14} strokeWidth={2.5} />
+                Deposit FLOW
+              </button>
+              <button
+                onClick={() => router.push("/app/shields")}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-violet-300 border border-violet-500/25 bg-violet-500/[0.07] hover:bg-violet-500/[0.12] hover:border-violet-500/40 transition-all duration-200 cursor-pointer"
+              >
+                <Shield size={14} strokeWidth={2} />
+                Open a Shield Position
+                <ChevronRight size={13} strokeWidth={2} className="opacity-60" />
+              </button>
+            </motion.div>
+
+            {/* ── Yield Growth Chart ── */}
+            {chartData.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.35 }}
+                className="rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 mb-4"
+              >
+                {/* Chart header */}
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <p className="text-sm font-semibold text-white mb-0.5">Yield Growth</p>
+                    <p className="text-[11px] text-slate-600 flex items-center gap-1.5">
+                      <Clock size={10} strokeWidth={2} />
+                      {daysSinceDeposit}d earned · 30d projection
+                    </p>
+                  </div>
+                  <div className="text-right bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2">
+                    <p className="text-[9px] text-slate-600 uppercase tracking-wider mb-0.5">Est. 30d yield</p>
+                    <p className="font-orbitron font-bold text-sm text-amber-400 tabular-nums">
+                      +{proj30d.toFixed(4)}
+                      <span className="text-slate-600 font-normal text-[10px] ml-1">FLOW</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Chart */}
+                <div className="h-[170px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="earnedGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.25} />
+                          <stop offset="100%" stopColor="#F59E0B" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.15} />
+                          <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="0"
+                        stroke="rgba(255,255,255,0.03)"
+                        horizontal
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 9, fill: "#334155", fontFamily: "inherit" }}
+                        axisLine={false}
+                        tickLine={false}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis
+                        tick={{ fontSize: 9, fill: "#334155", fontFamily: "inherit" }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v: number) => v.toFixed(3)}
+                        width={46}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#0F172A",
+                          border: "1px solid rgba(255,255,255,0.07)",
+                          borderRadius: 10,
+                          fontSize: 11,
+                          padding: "8px 12px",
+                          boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                        }}
+                        labelStyle={{ color: "#475569", marginBottom: 3, fontSize: 10 }}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        formatter={(v: any, name: string) => [
+                          <span key={name} className="font-mono">{(+v).toFixed(6)} FLOW</span>,
+                          name === "earned" ? "Earned" : "Projected",
+                        ]}
+                        cursor={{ stroke: "rgba(255,255,255,0.07)", strokeWidth: 1 }}
+                      />
+                      <ReferenceLine
+                        x={nowLabel}
+                        stroke="rgba(245,158,11,0.3)"
+                        strokeDasharray="3 3"
+                        label={{ value: "NOW", fill: "#92400E", fontSize: 8, position: "insideTopRight" }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="earned"
+                        stroke="#F59E0B"
+                        strokeWidth={2}
+                        fill="url(#earnedGrad)"
+                        dot={false}
+                        connectNulls={false}
+                        isAnimationActive
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="projected"
+                        stroke="#8B5CF6"
+                        strokeWidth={1.5}
+                        strokeDasharray="5 3"
+                        fill="url(#projGrad)"
+                        dot={false}
+                        connectNulls={false}
+                        isAnimationActive
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Legend */}
+                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/[0.04]">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-[2px] bg-amber-400 rounded" />
+                    <span className="text-[10px] text-slate-600">Earned</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-[2px] rounded" style={{ background: "repeating-linear-gradient(90deg,#8B5CF6 0,#8B5CF6 4px,transparent 4px,transparent 7px)" }} />
+                    <span className="text-[10px] text-slate-600">Projected</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Wallet balance row */}
+            {flowBalance !== null && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.25 }}
+                className="flex items-center justify-between rounded-xl bg-white/[0.02] border border-white/[0.05] px-4 py-2.5 mb-8"
+              >
+                <span className="inline-flex items-center gap-1.5 text-xs text-slate-700">
+                  <Wallet size={11} strokeWidth={1.8} />
+                  Wallet balance
+                </span>
+                <span className="font-orbitron text-xs text-slate-500 tabular-nums">
+                  {flowBalance.toFixed(4)}{" "}
+                  <span className="text-slate-700">FLOW</span>
+                </span>
+              </motion.div>
+            )}
+
+            {/* ── Shield Positions ── */}
+            {positions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.28 }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">
+                    Shield Positions
+                  </p>
+                  <button
+                    onClick={() => router.push("/app/shields")}
+                    className="text-[10px] text-slate-600 hover:text-slate-400 transition-colors duration-150 cursor-pointer flex items-center gap-0.5"
+                  >
+                    View all <ChevronRight size={10} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {positions.map((pos, i) => {
+                    const isPositive = pos.returnPct >= 0;
+                    return (
+                      <motion.div
+                        key={pos.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 + i * 0.06 }}
+                        onClick={() => router.push(`/app/position/${pos.id}`)}
+                        className="relative rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 min-w-0 cursor-pointer group transition-all duration-200 hover:border-white/[0.12] hover:bg-[#243044]"
+                      >
+                        {/* left accent bar */}
+                        <div className={`absolute left-0 top-4 bottom-4 w-[3px] rounded-full ${isPositive ? "bg-emerald-500/60" : "bg-red-500/60"}`} />
+
+                        <div className="pl-2 flex items-start justify-between gap-3 mb-4">
+                          <div className="min-w-0">
+                            <p className="text-white font-semibold text-sm mb-0.5 truncate">
+                              {pos.shieldType.replace(/_/g, " ")}
+                            </p>
+                            <p className="text-slate-600 text-xs">
+                              {pos.asset} · {pos.leverage}x leverage
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={`font-orbitron font-bold text-lg leading-none ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+                              {isPositive ? "+" : ""}{(pos.returnPct * 100).toFixed(2)}%
+                            </p>
+                            <p className="text-[10px] text-slate-600 mt-0.5">P&amp;L</p>
+                          </div>
+                        </div>
+
+                        <div className="pl-2">
+                          <div className="h-[3px] rounded-full bg-white/[0.04] overflow-hidden mb-3">
+                            <motion.div
+                              className={`h-full rounded-full ${isPositive ? "bg-emerald-500" : "bg-red-500"}`}
+                              animate={{ width: `${Math.min(100, Math.max(4, 50 + pos.returnPct * 100))}%` }}
+                              transition={{ duration: 0.8 }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[10px] text-slate-700">
+                            <span className="tabular-nums">Open @ {pos.openPrice.toFixed(2)}</span>
+                            <span className="tabular-nums">Now @ {pos.currentPrice.toFixed(2)}</span>
+                          </div>
+                        </div>
+
+                        <ChevronRight
+                          size={14}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700 group-hover:text-slate-500 transition-colors duration-150"
+                        />
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+
+            {/* No positions callout */}
+            {positions.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="rounded-2xl border border-dashed border-white/[0.07] p-6 text-center"
+              >
+                <Shield size={20} className="text-violet-500/40 mx-auto mb-2.5" strokeWidth={1.5} />
+                <p className="text-slate-500 text-sm font-medium mb-1">No active Shield positions</p>
+                <p className="text-slate-700 text-xs leading-relaxed max-w-xs mx-auto">
+                  Your yield funds leveraged positions on BTC, ETH, Gold &amp; FLOW.
+                  Only the yield is at risk — never your principal.
+                </p>
+              </motion.div>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* ══ Deposit Modal ══ */}
+      <AnimatePresence>
+        {showDepositModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
               onClick={() => !isDepositing && setShowDepositModal(false)}
             />
-
-            {/* Modal panel */}
             <motion.div
-              initial={{ opacity: 0, y: 60, scale: 0.95 }}
+              initial={{ opacity: 0, y: 48, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 40, scale: 0.95 }}
-              transition={{ type: "spring", damping: 24, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 max-w-480px mx-auto"
+              exit={{ opacity: 0, y: 32, scale: 0.97 }}
+              transition={{ type: "spring", damping: 26, stiffness: 320 }}
+              className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto"
             >
               <div
-                className="glass rounded-t-3xl p-6 pb-10 border-t border-x border-white/10"
-                style={{ boxShadow: "0 -20px 60px rgba(0,0,0,0.6)" }}
+                className="rounded-t-3xl p-6 pb-10 border-t border-x border-white/[0.08]"
+                style={{ background: "#111827", boxShadow: "0 -24px 64px rgba(0,0,0,0.7)" }}
               >
-                {/* Handle bar */}
-                <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-6" />
+                {/* Handle */}
+                <div className="w-9 h-1 rounded-full bg-white/15 mx-auto mb-6" />
 
-                <h2 className="font-orbitron font-bold text-white text-lg mb-1">
+                <h2 className="font-orbitron font-bold text-white text-base mb-1">
                   Deposit FLOW
                 </h2>
-                <p className="text-slate-400 text-sm mb-6">
+                <p className="text-slate-500 text-sm mb-6">
                   Your principal is always protected. Only yield gets used.
                 </p>
 
                 {/* Amount input */}
                 <div className="mb-5">
-                  <label className="block text-slate-400 text-xs mb-2">
-                    Amount (1 – 1000 FLOW)
+                  <label className="block text-slate-600 text-xs mb-2 font-medium">
+                    Amount · 1 – 1000 FLOW
                   </label>
                   <div className="relative">
                     <input
                       type="number"
-                      min="1"
-                      max="1000"
-                      step="1"
+                      min="1" max="1000" step="1"
                       value={depositAmount}
-                      onChange={(e) => {
-                        setDepositAmount(e.target.value);
-                        setDepositError("");
-                      }}
-                      className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-4 py-3.5 text-white font-orbitron text-lg focus:outline-none focus:border-yellow-500/50 transition-colors pr-16"
+                      onChange={(e) => { setDepositAmount(e.target.value); setDepositError(""); }}
+                      className="w-full bg-[#1E293B] border border-white/[0.08] rounded-xl px-4 py-3 text-white font-orbitron text-xl focus:outline-none focus:border-amber-500/40 transition-colors duration-150 pr-16 tabular-nums"
                       placeholder="10"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-orbitron">
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 text-sm font-orbitron">
                       FLOW
                     </span>
                   </div>
-
-                  {/* Quick amounts */}
                   <div className="flex gap-2 mt-2">
                     {["10", "25", "50", "100"].map((amt) => (
                       <button
                         key={amt}
                         onClick={() => setDepositAmount(amt)}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
                           depositAmount === amt
-                            ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/40"
-                            : "bg-white/5 text-slate-400 border border-white/8 hover:bg-white/10"
+                            ? "bg-amber-500/15 text-amber-400 border border-amber-500/35"
+                            : "bg-white/[0.04] text-slate-500 border border-white/[0.07] hover:bg-white/[0.07] hover:text-slate-300"
                         }`}
                       >
                         {amt}
@@ -1345,67 +835,30 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Pet type selector (only if no existing pet) */}
-                {!pet && (
-                  <div className="mb-5">
-                    <label className="block text-slate-400 text-xs mb-2">
-                      Choose your companion
-                    </label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {PET_OPTIONS.map((option) => (
-                        <button
-                          key={option.type}
-                          onClick={() => setSelectedPetType(option.type)}
-                          className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all cursor-pointer ${
-                            selectedPetType === option.type
-                              ? option.color
-                              : "border-white/8 bg-white/4 hover:bg-white/8"
-                          }`}
-                        >
-                          <span className="text-2xl">{option.emoji}</span>
-                          <span className="text-xs text-slate-300 font-medium">{option.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Error message */}
                 {depositError && (
                   <motion.p
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-red-400 text-xs mb-4 px-1"
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                    className="text-red-400 text-xs mb-4"
                   >
                     {depositError}
                   </motion.p>
                 )}
 
-                {/* Confirm button */}
                 <button
                   onClick={handleDeposit}
                   disabled={isDepositing}
-                  className="w-full py-4 rounded-xl font-orbitron font-bold text-sm text-black disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
-                  style={{
-                    background: "linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)",
-                    boxShadow: "0 0 20px rgba(245,158,11,0.3)",
-                  }}
+                  className="w-full py-3.5 rounded-xl font-orbitron font-bold text-sm text-black disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all duration-200 hover:brightness-110 active:scale-[0.99] flex items-center justify-center gap-2"
+                  style={{ background: "linear-gradient(135deg, #F59E0B, #FBBF24)", boxShadow: "0 0 20px rgba(245,158,11,0.22)" }}
                 >
                   {isDepositing ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                      Processing…
-                    </>
-                  ) : (
-                    `Deposit ${depositAmount || "0"} FLOW`
-                  )}
+                    <><span className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" /> Processing…</>
+                  ) : `Deposit ${depositAmount || "0"} FLOW`}
                 </button>
 
-                {/* Cancel */}
                 {!isDepositing && (
                   <button
                     onClick={() => setShowDepositModal(false)}
-                    className="w-full mt-3 py-2.5 rounded-xl text-slate-500 text-sm hover:text-slate-300 transition-colors cursor-pointer"
+                    className="w-full mt-3 py-2.5 text-slate-600 text-sm hover:text-slate-400 transition-colors duration-150 cursor-pointer"
                   >
                     Cancel
                   </button>

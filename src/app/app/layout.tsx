@@ -27,8 +27,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <ToastNotifications />
-      {/* Mobile: max-width 480px centered with bottom-nav padding. Desktop: full width. */}
-      <div className="max-w-[480px] lg:max-w-none mx-auto pb-20 lg:pb-0 min-h-dvh">
+      <div className="pb-20 lg:pb-0 min-h-dvh">
         {children}
       </div>
       <BottomNav />
