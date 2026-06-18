@@ -2,19 +2,30 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, ReferenceLine, CartesianGrid,
 } from "recharts";
 import {
-  Lock, TrendingUp, Landmark, Shield, Plus, ArrowRight,
+  Lock, TrendingUp, Landmark, Shield, Plus, ArrowUpRight,
   Wallet, ChevronRight, Activity, Clock,
 } from "lucide-react";
 import { fcl, SCRIPTS, TRANSACTIONS } from "@/lib/flow";
 import { fetchLivePrices } from "@/lib/prices";
 import { useYoldrStore } from "@/store/useYoldrStore";
 import DepositLoadingScreen from "@/components/DepositLoadingScreen";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import {
+  Dialog, DialogContent, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import { AssetLogo } from "@/components/ui/asset-logo";
+
+const ACCENT = "#e8702a";
 
 /* ─── helpers ─────────────────────────────────────────────── */
 
@@ -40,34 +51,6 @@ function AnimatedNumber({ value, decimals = 4 }: { value: number; decimals?: num
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
   return <>{displayed.toFixed(decimals)}</>;
-}
-
-/* ─── skeleton ────────────────────────────────────────────── */
-
-function StatSkeleton() {
-  return (
-    <div className="rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 animate-pulse">
-      <div className="h-2.5 w-16 bg-white/10 rounded-full mb-4" />
-      <div className="h-7 w-28 bg-white/10 rounded-lg mb-1.5" />
-      <div className="h-2.5 w-10 bg-white/10 rounded-full mb-4" />
-      <div className="h-5 w-20 bg-white/[0.07] rounded-full" />
-    </div>
-  );
-}
-
-function ChartSkeleton() {
-  return (
-    <div className="rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 animate-pulse">
-      <div className="flex justify-between mb-5">
-        <div>
-          <div className="h-3 w-24 bg-white/10 rounded-full mb-2" />
-          <div className="h-2.5 w-36 bg-white/[0.07] rounded-full" />
-        </div>
-        <div className="h-8 w-24 bg-white/[0.07] rounded-xl" />
-      </div>
-      <div className="h-[160px] bg-white/[0.04] rounded-xl" />
-    </div>
-  );
 }
 
 /* ─── main page ───────────────────────────────────────────── */
@@ -273,7 +256,7 @@ export default function DashboardPage() {
         args: (arg: any, t: any) => [arg(amount.toFixed(8), t.UFix64), arg("Griffin", t.String)],
         limit: 999,
       });
-      addToast({ message: `Deposit submitted! Tx: ${String(txId).slice(0, 10)}…`, type: "info" });
+      addToast({ message: `Deposit submitted! Tx: ${String(txId).slice(0, 10)}...`, type: "info" });
       await fcl.tx(txId).onceSealed();
       addToast({ message: "Vault created! Your FLOW is safely deposited.", type: "success" });
       setShowDepositModal(false);
@@ -292,31 +275,31 @@ export default function DashboardPage() {
 
   /* ─────────────────────────── render ────────────────────── */
   return (
-    <div className="bg-[#0A0F1E] min-h-screen">
+    <div
+      className="min-h-screen bg-black text-white tracking-[-0.02em]"
+      style={{ fontFamily: "'Inter', sans-serif" }}
+    >
       <DepositLoadingScreen show={isDepositing} petType="Griffin" amount={depositAmount} />
 
       {/* ══ Sticky header ══ */}
-      <header className="sticky top-0 z-30 border-b border-white/[0.05] bg-[#0A0F1E]/80 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          {/* Logo */}
-          <span className="font-orbitron font-bold text-base shimmer-text tracking-widest shrink-0">
-            YOLDR
-          </span>
+      <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-black/80 backdrop-blur-xl">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <span className="font-playfair italic text-2xl text-white shrink-0">Yoldr</span>
 
-          {/* Right side */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="hidden sm:flex items-center">
+            <div className="hidden sm:flex items-center gap-1">
               {[
                 { label: "Shields", href: "/app/shields" },
                 { label: "Leaderboard", href: "/app/leaderboard" },
               ].map((item) => (
-                <button
+                <Button
                   key={item.href}
+                  variant="ghost"
+                  size="sm"
                   onClick={() => router.push(item.href)}
-                  className="text-xs text-slate-500 hover:text-slate-200 px-3 py-1.5 rounded-lg hover:bg-white/[0.05] transition-colors duration-150 cursor-pointer font-medium"
                 >
                   {item.label}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -326,45 +309,48 @@ export default function DashboardPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 title={user.addr}
-                className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.07] px-3 py-1.5 rounded-lg font-mono transition-all duration-150 cursor-pointer"
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs text-white/55 hover:text-white bg-white/[0.04] hover:bg-white/[0.07] border border-white/10 px-3 py-1.5 rounded-full font-mono transition-all"
               >
                 {truncateAddr(user.addr)}
-                <ArrowRight size={10} className="rotate-[-45deg] opacity-60" />
+                <ArrowUpRight size={11} className="opacity-60" />
               </a>
             )}
 
-            <button
-              onClick={handleSignOut}
-              className="text-xs text-slate-600 hover:text-slate-300 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] px-3 py-1.5 rounded-lg transition-all duration-150 cursor-pointer"
-            >
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-white/45">
               Sign out
-            </button>
+            </Button>
           </div>
         </div>
       </header>
 
       {/* ══ Main ══ */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-7 pb-16">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-20">
 
         {/* ── Skeleton loading ── */}
         {isLoading && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <div className="animate-pulse">
-                <div className="h-4 w-24 bg-white/10 rounded-lg mb-2" />
-                <div className="h-3 w-40 bg-white/[0.07] rounded-lg" />
+            <div className="flex items-center justify-between mb-7">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-3 w-44" />
               </div>
-              <div className="h-7 w-20 bg-white/[0.07] rounded-full animate-pulse" />
+              <Skeleton className="h-7 w-20 rounded-full" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-              <StatSkeleton /><StatSkeleton /><StatSkeleton />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+              {[0, 1, 2].map((i) => (
+                <Card key={i} className="p-5">
+                  <Skeleton className="h-2.5 w-16 mb-4" />
+                  <Skeleton className="h-8 w-28 mb-3" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </Card>
+              ))}
             </div>
-            <div className="h-1 bg-white/[0.04] rounded-full mb-6" />
-            <div className="flex gap-3 mb-6">
-              <div className="flex-1 h-12 bg-white/[0.07] rounded-xl animate-pulse" />
-              <div className="flex-1 h-12 bg-white/[0.04] rounded-xl animate-pulse" />
+            <Skeleton className="h-1.5 w-full mb-7" />
+            <div className="flex gap-3 mb-7">
+              <Skeleton className="h-12 flex-1 rounded-full" />
+              <Skeleton className="h-12 flex-1 rounded-full" />
             </div>
-            <ChartSkeleton />
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
         )}
 
@@ -376,29 +362,29 @@ export default function DashboardPage() {
             transition={{ duration: 0.4 }}
             className="flex flex-col items-center justify-center py-24 text-center"
           >
-            <div className="w-16 h-16 rounded-2xl bg-[#1E293B] border border-white/[0.07] flex items-center justify-center mb-5 shadow-xl">
-              <Landmark size={28} className="text-amber-500/70" strokeWidth={1.5} />
+            <div
+              className="w-16 h-16 rounded-2xl border border-white/10 flex items-center justify-center mb-6"
+              style={{ background: `linear-gradient(135deg, ${ACCENT}22, transparent)` }}
+            >
+              <Landmark size={26} style={{ color: ACCENT }} strokeWidth={1.5} />
             </div>
-            <h2 className="font-orbitron font-bold text-white text-xl mb-2">
+            <h2 className="font-playfair italic text-2xl text-white mb-3">
               Start earning safely
             </h2>
-            <p className="text-slate-400 text-sm mb-1.5 max-w-xs leading-relaxed">
-              Deposit FLOW. Your principal is locked in the vault — permanently safe.
+            <p className="text-white/60 text-sm mb-1.5 max-w-sm leading-relaxed">
+              Add FLOW and it stays yours. Your deposit is locked in the vault and
+              always safe.
             </p>
-            <p className="text-slate-600 text-xs mb-8 max-w-xs leading-relaxed">
-              The yield it generates funds leveraged Shield positions on BTC, ETH, Gold &amp; FLOW.
-              You can only ever lose the yield.
+            <p className="text-white/35 text-xs mb-8 max-w-sm leading-relaxed">
+              Only the profit it earns goes out to chase wins. You can never lose
+              what you put in.
             </p>
-            <button
-              onClick={() => setShowDepositModal(true)}
-              className="inline-flex items-center gap-2 px-7 py-3 rounded-xl font-orbitron font-bold text-sm text-black cursor-pointer transition-all duration-200 hover:brightness-110 active:scale-95"
-              style={{ background: "linear-gradient(135deg, #F59E0B, #FBBF24)", boxShadow: "0 0 28px rgba(245,158,11,0.22)" }}
-            >
-              <Plus size={14} strokeWidth={2.5} />
-              Deposit FLOW
-            </button>
+            <Button variant="primary" size="lg" onClick={() => setShowDepositModal(true)}>
+              <Plus size={16} strokeWidth={2.5} />
+              Add FLOW
+            </Button>
             {flowBalance !== null && (
-              <p className="text-slate-700 text-xs mt-4 flex items-center gap-1.5">
+              <p className="text-white/30 text-xs mt-5 flex items-center gap-1.5">
                 <Wallet size={11} /> {flowBalance.toFixed(4)} FLOW in wallet
               </p>
             )}
@@ -413,21 +399,21 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="flex items-start justify-between mb-6"
+              className="flex items-start justify-between mb-7"
             >
               <div>
-                <h1 className="font-orbitron font-bold text-white text-base mb-1">
-                  Your Vault
+                <h1 className="font-playfair italic text-3xl text-white mb-1.5">
+                  Your vault
                 </h1>
-                <p className="text-slate-600 text-xs flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
-                  Flow Testnet · Principal-protected yield
+                <p className="text-white/40 text-xs flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                  Flow Testnet · Your deposit is always safe
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 bg-amber-500/[0.08] border border-amber-500/20 px-3 py-1.5 rounded-full">
+              <Badge variant="accent" className="px-3 py-1.5 text-xs">
                 <TrendingUp size={11} strokeWidth={2.5} />
                 5% APY
-              </span>
+              </Badge>
             </motion.div>
 
             {/* ── Stat cards ── */}
@@ -435,56 +421,55 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35 }}
-              className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4"
+              className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5"
             >
               {/* Principal */}
-              <div className="relative rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 min-w-0 overflow-hidden group">
-                {/* top accent */}
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500/70 via-emerald-500/30 to-transparent" />
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
-                  Principal
+              <Card className="relative p-5 overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-emerald-500/60 to-transparent" />
+                <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.15em] mb-3">
+                  Your deposit
                 </p>
-                <p className="font-orbitron font-bold text-[1.6rem] leading-none text-emerald-400 mb-1 truncate">
+                <p className="text-[1.75rem] font-semibold leading-none text-white mb-3 tabular-nums truncate">
                   <AnimatedNumber value={vault.principal} decimals={2} />
+                  <span className="text-sm text-white/30 font-normal ml-1.5">FLOW</span>
                 </p>
-                <p className="text-[11px] text-slate-600 mb-3.5">FLOW</p>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-500 bg-emerald-500/[0.08] border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                  <Lock size={8} strokeWidth={3} />
+                <Badge variant="safe">
+                  <Lock size={9} strokeWidth={3} />
                   Always safe
-                </span>
-              </div>
+                </Badge>
+              </Card>
 
               {/* Accrued Yield */}
-              <div className="relative rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 min-w-0 overflow-hidden group">
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500/70 via-amber-500/30 to-transparent" />
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
-                  Accrued Yield
+              <Card className="relative p-5 overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-[#e8702a]/70 to-transparent" />
+                <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.15em] mb-3">
+                  Profit so far
                 </p>
-                <p className="font-orbitron font-bold text-[1.6rem] leading-none text-amber-400 mb-1 truncate tabular-nums">
+                <p className="text-[1.75rem] font-semibold leading-none mb-3 tabular-nums truncate" style={{ color: ACCENT }}>
                   +{liveYield.toFixed(6)}
+                  <span className="text-sm text-white/30 font-normal ml-1.5">FLOW</span>
                 </p>
-                <p className="text-[11px] text-slate-600 mb-3.5">FLOW</p>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-500 bg-amber-500/[0.08] border border-amber-500/20 px-2 py-0.5 rounded-full">
-                  <Activity size={8} strokeWidth={2.5} />
+                <Badge variant="accent">
+                  <Activity size={9} strokeWidth={2.5} />
                   5% APY · live
-                </span>
-              </div>
+                </Badge>
+              </Card>
 
               {/* Total Earned */}
-              <div className="relative rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 min-w-0 overflow-hidden group">
-                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-violet-500/50 via-violet-500/20 to-transparent" />
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
-                  Total Earned
+              <Card className="relative p-5 overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-white/30 to-transparent" />
+                <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.15em] mb-3">
+                  Total earned
                 </p>
-                <p className="font-orbitron font-bold text-[1.6rem] leading-none text-slate-200 mb-1 truncate">
+                <p className="text-[1.75rem] font-semibold leading-none text-white/85 mb-3 tabular-nums truncate">
                   <AnimatedNumber value={vault.totalYieldEarned} decimals={4} />
+                  <span className="text-sm text-white/30 font-normal ml-1.5">FLOW</span>
                 </p>
-                <p className="text-[11px] text-slate-600 mb-3.5">FLOW</p>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 bg-white/[0.04] border border-white/[0.07] px-2 py-0.5 rounded-full">
-                  <Clock size={8} strokeWidth={2.5} />
+                <Badge variant="neutral">
+                  <Clock size={9} strokeWidth={2.5} />
                   All time
-                </span>
-              </div>
+                </Badge>
+              </Card>
             </motion.div>
 
             {/* Yield progress bar */}
@@ -492,20 +477,13 @@ export default function DashboardPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
-              className="mb-7"
+              className="mb-8"
             >
-              <div className="flex justify-between text-[10px] text-slate-700 mb-1.5">
-                <span>Yield accrued vs principal</span>
-                <span className="tabular-nums text-amber-600/70">{yieldPct.toFixed(5)}%</span>
+              <div className="flex justify-between text-[10px] text-white/35 mb-2">
+                <span>Profit earned vs deposit</span>
+                <span className="tabular-nums" style={{ color: `${ACCENT}aa` }}>{yieldPct.toFixed(5)}%</span>
               </div>
-              <div className="h-[3px] rounded-full bg-white/[0.04] overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-400"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.max(0.4, yieldPct)}%` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                />
-              </div>
+              <Progress value={Math.max(0.4, yieldPct)} />
             </motion.div>
 
             {/* ── Action buttons ── */}
@@ -513,24 +491,17 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15, duration: 0.3 }}
-              className="flex flex-col sm:flex-row gap-2.5 mb-8"
+              className="flex flex-col sm:flex-row gap-2.5 mb-9"
             >
-              <button
-                onClick={() => setShowDepositModal(true)}
-                className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-xl font-orbitron font-bold text-sm text-black cursor-pointer transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-                style={{ background: "linear-gradient(135deg, #F59E0B, #FBBF24)", boxShadow: "0 0 24px rgba(245,158,11,0.18)" }}
-              >
-                <Plus size={14} strokeWidth={2.5} />
-                Deposit FLOW
-              </button>
-              <button
-                onClick={() => router.push("/app/shields")}
-                className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-violet-300 border border-violet-500/25 bg-violet-500/[0.07] hover:bg-violet-500/[0.12] hover:border-violet-500/40 transition-all duration-200 cursor-pointer"
-              >
-                <Shield size={14} strokeWidth={2} />
-                Open a Shield Position
-                <ChevronRight size={13} strokeWidth={2} className="opacity-60" />
-              </button>
+              <Button variant="primary" size="lg" className="flex-1" onClick={() => setShowDepositModal(true)}>
+                <Plus size={16} strokeWidth={2.5} />
+                Add FLOW
+              </Button>
+              <Button variant="outline" size="lg" className="flex-1" onClick={() => router.push("/app/shields")}>
+                <Shield size={15} strokeWidth={2} />
+                Open a Shield
+                <ChevronRight size={14} strokeWidth={2} className="opacity-60" />
+              </Button>
             </motion.div>
 
             {/* ── Yield Growth Chart ── */}
@@ -539,119 +510,89 @@ export default function DashboardPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.35 }}
-                className="rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 mb-4"
               >
-                {/* Chart header */}
-                <div className="flex items-start justify-between mb-5">
-                  <div>
-                    <p className="text-sm font-semibold text-white mb-0.5">Yield Growth</p>
-                    <p className="text-[11px] text-slate-600 flex items-center gap-1.5">
-                      <Clock size={10} strokeWidth={2} />
-                      {daysSinceDeposit}d earned · 30d projection
-                    </p>
+                <Card className="p-5 mb-4">
+                  <div className="flex items-start justify-between mb-5">
+                    <div>
+                      <p className="text-sm font-semibold text-white mb-0.5">Profit over time</p>
+                      <p className="text-[11px] text-white/40 flex items-center gap-1.5">
+                        <Clock size={10} strokeWidth={2} />
+                        {daysSinceDeposit}d earned · 30d projection
+                      </p>
+                    </div>
+                    <div className="text-right bg-white/[0.03] border border-white/10 rounded-xl px-3 py-2">
+                      <p className="text-[9px] text-white/40 uppercase tracking-wider mb-0.5">Est. 30d profit</p>
+                      <p className="text-sm font-semibold tabular-nums" style={{ color: ACCENT }}>
+                        +{proj30d.toFixed(4)}
+                        <span className="text-white/30 font-normal text-[10px] ml-1">FLOW</span>
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2">
-                    <p className="text-[9px] text-slate-600 uppercase tracking-wider mb-0.5">Est. 30d yield</p>
-                    <p className="font-orbitron font-bold text-sm text-amber-400 tabular-nums">
-                      +{proj30d.toFixed(4)}
-                      <span className="text-slate-600 font-normal text-[10px] ml-1">FLOW</span>
-                    </p>
-                  </div>
-                </div>
 
-                {/* Chart */}
-                <div className="h-[170px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="earnedGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#F59E0B" stopOpacity={0.25} />
-                          <stop offset="100%" stopColor="#F59E0B" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#8B5CF6" stopOpacity={0.15} />
-                          <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid
-                        strokeDasharray="0"
-                        stroke="rgba(255,255,255,0.03)"
-                        horizontal
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="label"
-                        tick={{ fontSize: 9, fill: "#334155", fontFamily: "inherit" }}
-                        axisLine={false}
-                        tickLine={false}
-                        interval="preserveStartEnd"
-                      />
-                      <YAxis
-                        tick={{ fontSize: 9, fill: "#334155", fontFamily: "inherit" }}
-                        axisLine={false}
-                        tickLine={false}
-                        tickFormatter={(v: number) => v.toFixed(3)}
-                        width={46}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          background: "#0F172A",
-                          border: "1px solid rgba(255,255,255,0.07)",
-                          borderRadius: 10,
-                          fontSize: 11,
-                          padding: "8px 12px",
-                          boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-                        }}
-                        labelStyle={{ color: "#475569", marginBottom: 3, fontSize: 10 }}
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(v: any, name: any) => [
-                          <span key={name} className="font-mono">{(+v).toFixed(6)} FLOW</span>,
-                          name === "earned" ? "Earned" : "Projected",
-                        ]}
-                        cursor={{ stroke: "rgba(255,255,255,0.07)", strokeWidth: 1 }}
-                      />
-                      <ReferenceLine
-                        x={nowLabel}
-                        stroke="rgba(245,158,11,0.3)"
-                        strokeDasharray="3 3"
-                        label={{ value: "NOW", fill: "#92400E", fontSize: 8, position: "insideTopRight" }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="earned"
-                        stroke="#F59E0B"
-                        strokeWidth={2}
-                        fill="url(#earnedGrad)"
-                        dot={false}
-                        connectNulls={false}
-                        isAnimationActive
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="projected"
-                        stroke="#8B5CF6"
-                        strokeWidth={1.5}
-                        strokeDasharray="5 3"
-                        fill="url(#projGrad)"
-                        dot={false}
-                        connectNulls={false}
-                        isAnimationActive
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                  <div className="h-[180px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="earnedGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={ACCENT} stopOpacity={0.28} />
+                            <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
+                          </linearGradient>
+                          <linearGradient id="projGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#ffffff" stopOpacity={0.1} />
+                            <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="0" stroke="rgba(255,255,255,0.04)" horizontal vertical={false} />
+                        <XAxis
+                          dataKey="label"
+                          tick={{ fontSize: 9, fill: "#555", fontFamily: "inherit" }}
+                          axisLine={false} tickLine={false} interval="preserveStartEnd"
+                        />
+                        <YAxis
+                          tick={{ fontSize: 9, fill: "#555", fontFamily: "inherit" }}
+                          axisLine={false} tickLine={false}
+                          tickFormatter={(v: number) => v.toFixed(3)} width={46}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            background: "#0b0b0d",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            borderRadius: 12,
+                            fontSize: 11,
+                            padding: "8px 12px",
+                            boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
+                          }}
+                          labelStyle={{ color: "#888", marginBottom: 3, fontSize: 10 }}
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          formatter={(v: any, name: any) => [
+                            <span key={name} className="font-mono">{(+v).toFixed(6)} FLOW</span>,
+                            name === "earned" ? "Earned" : "Projected",
+                          ]}
+                          cursor={{ stroke: "rgba(255,255,255,0.1)", strokeWidth: 1 }}
+                        />
+                        <ReferenceLine
+                          x={nowLabel}
+                          stroke={`${ACCENT}66`}
+                          strokeDasharray="3 3"
+                          label={{ value: "NOW", fill: ACCENT, fontSize: 8, position: "insideTopRight" }}
+                        />
+                        <Area type="monotone" dataKey="earned" stroke={ACCENT} strokeWidth={2} fill="url(#earnedGrad)" dot={false} connectNulls={false} isAnimationActive />
+                        <Area type="monotone" dataKey="projected" stroke="rgba(255,255,255,0.5)" strokeWidth={1.5} strokeDasharray="5 3" fill="url(#projGrad)" dot={false} connectNulls={false} isAnimationActive />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
 
-                {/* Legend */}
-                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/[0.04]">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-[2px] bg-amber-400 rounded" />
-                    <span className="text-[10px] text-slate-600">Earned</span>
+                  <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/[0.06]">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-[2px] rounded" style={{ background: ACCENT }} />
+                      <span className="text-[10px] text-white/40">Earned</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-[2px] rounded" style={{ background: "repeating-linear-gradient(90deg,rgba(255,255,255,0.6) 0,rgba(255,255,255,0.6) 4px,transparent 4px,transparent 7px)" }} />
+                      <span className="text-[10px] text-white/40">Projected</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-[2px] rounded" style={{ background: "repeating-linear-gradient(90deg,#8B5CF6 0,#8B5CF6 4px,transparent 4px,transparent 7px)" }} />
-                    <span className="text-[10px] text-slate-600">Projected</span>
-                  </div>
-                </div>
+                </Card>
               </motion.div>
             )}
 
@@ -661,15 +602,15 @@ export default function DashboardPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.25 }}
-                className="flex items-center justify-between rounded-xl bg-white/[0.02] border border-white/[0.05] px-4 py-2.5 mb-8"
+                className="flex items-center justify-between rounded-xl bg-white/[0.02] border border-white/[0.06] px-4 py-3 mb-9"
               >
-                <span className="inline-flex items-center gap-1.5 text-xs text-slate-700">
-                  <Wallet size={11} strokeWidth={1.8} />
+                <span className="inline-flex items-center gap-1.5 text-xs text-white/45">
+                  <Wallet size={12} strokeWidth={1.8} />
                   Wallet balance
                 </span>
-                <span className="font-orbitron text-xs text-slate-500 tabular-nums">
+                <span className="text-xs text-white/60 tabular-nums">
                   {flowBalance.toFixed(4)}{" "}
-                  <span className="text-slate-700">FLOW</span>
+                  <span className="text-white/30">FLOW</span>
                 </span>
               </motion.div>
             )}
@@ -681,15 +622,15 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.28 }}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">
-                    Shield Positions
+                <div className="flex items-center justify-between mb-3.5">
+                  <p className="text-[10px] font-medium text-white/40 uppercase tracking-[0.15em]">
+                    Your shields
                   </p>
                   <button
                     onClick={() => router.push("/app/shields")}
-                    className="text-[10px] text-slate-600 hover:text-slate-400 transition-colors duration-150 cursor-pointer flex items-center gap-0.5"
+                    className="text-[11px] text-white/40 hover:text-white/70 transition-colors cursor-pointer flex items-center gap-0.5"
                   >
-                    View all <ChevronRight size={10} />
+                    View all <ChevronRight size={11} />
                   </button>
                 </div>
 
@@ -703,46 +644,39 @@ export default function DashboardPage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 + i * 0.06 }}
                         onClick={() => router.push(`/app/position/${pos.id}`)}
-                        className="relative rounded-2xl bg-[#1E293B] border border-white/[0.06] p-5 min-w-0 cursor-pointer group transition-all duration-200 hover:border-white/[0.12] hover:bg-[#243044]"
+                        className="relative rounded-2xl bg-white/[0.03] border border-white/10 p-5 min-w-0 cursor-pointer group transition-all hover:border-white/20 hover:bg-white/[0.05]"
                       >
-                        {/* left accent bar */}
-                        <div className={`absolute left-0 top-4 bottom-4 w-[3px] rounded-full ${isPositive ? "bg-emerald-500/60" : "bg-red-500/60"}`} />
-
-                        <div className="pl-2 flex items-start justify-between gap-3 mb-4">
-                          <div className="min-w-0">
+                        <div className="flex items-start gap-3.5 mb-4">
+                          <AssetLogo asset={pos.asset} size={44} />
+                          <div className="min-w-0 flex-1">
                             <p className="text-white font-semibold text-sm mb-0.5 truncate">
                               {pos.shieldType.replace(/_/g, " ")}
                             </p>
-                            <p className="text-slate-600 text-xs">
-                              {pos.asset} · {pos.leverage}x leverage
+                            <p className="text-white/40 text-xs">
+                              {pos.asset} · {pos.leverage}x
                             </p>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className={`font-orbitron font-bold text-lg leading-none ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+                            <p className={`font-semibold text-lg leading-none tabular-nums ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
                               {isPositive ? "+" : ""}{(pos.returnPct * 100).toFixed(2)}%
                             </p>
-                            <p className="text-[10px] text-slate-600 mt-0.5">P&amp;L</p>
+                            <p className="text-[10px] text-white/35 mt-0.5">P&amp;L</p>
                           </div>
                         </div>
 
-                        <div className="pl-2">
-                          <div className="h-[3px] rounded-full bg-white/[0.04] overflow-hidden mb-3">
-                            <motion.div
-                              className={`h-full rounded-full ${isPositive ? "bg-emerald-500" : "bg-red-500"}`}
-                              animate={{ width: `${Math.min(100, Math.max(4, 50 + pos.returnPct * 100))}%` }}
-                              transition={{ duration: 0.8 }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-[10px] text-slate-700">
-                            <span className="tabular-nums">Open @ {pos.openPrice.toFixed(2)}</span>
-                            <span className="tabular-nums">Now @ {pos.currentPrice.toFixed(2)}</span>
-                          </div>
+                        <div className="h-[3px] rounded-full bg-white/[0.06] overflow-hidden mb-3">
+                          <motion.div
+                            className={`h-full rounded-full ${isPositive ? "bg-emerald-500" : "bg-red-500"}`}
+                            animate={{ width: `${Math.min(100, Math.max(4, 50 + pos.returnPct * 100))}%` }}
+                            transition={{ duration: 0.8 }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-white/35">
+                          <span className="tabular-nums">Open @ {pos.openPrice.toFixed(2)}</span>
+                          <span className="tabular-nums">Now @ {pos.currentPrice.toFixed(2)}</span>
                         </div>
 
-                        <ChevronRight
-                          size={14}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700 group-hover:text-slate-500 transition-colors duration-150"
-                        />
+                        <ChevronRight size={15} className="absolute right-4 top-5 text-white/20 group-hover:text-white/40 transition-colors" />
                       </motion.div>
                     );
                   })}
@@ -756,13 +690,13 @@ export default function DashboardPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="rounded-2xl border border-dashed border-white/[0.07] p-6 text-center"
+                className="rounded-2xl border border-dashed border-white/10 p-7 text-center"
               >
-                <Shield size={20} className="text-violet-500/40 mx-auto mb-2.5" strokeWidth={1.5} />
-                <p className="text-slate-500 text-sm font-medium mb-1">No active Shield positions</p>
-                <p className="text-slate-700 text-xs leading-relaxed max-w-xs mx-auto">
-                  Your yield funds leveraged positions on BTC, ETH, Gold &amp; FLOW.
-                  Only the yield is at risk — never your principal.
+                <Shield size={22} className="mx-auto mb-3" style={{ color: `${ACCENT}99` }} strokeWidth={1.5} />
+                <p className="text-white/70 text-sm font-medium mb-1.5">No shields open yet</p>
+                <p className="text-white/35 text-xs leading-relaxed max-w-xs mx-auto">
+                  Your profit can chase bigger wins on Gold, BTC, ETH and FLOW.
+                  Only the profit is ever at stake, never your deposit.
                 </p>
               </motion.div>
             )}
@@ -770,104 +704,78 @@ export default function DashboardPage() {
         )}
       </main>
 
-      {/* ══ Deposit Modal ══ */}
-      <AnimatePresence>
-        {showDepositModal && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-              onClick={() => !isDepositing && setShowDepositModal(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, y: 48, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 32, scale: 0.97 }}
-              transition={{ type: "spring", damping: 26, stiffness: 320 }}
-              className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto"
-            >
-              <div
-                className="rounded-t-3xl p-6 pb-10 border-t border-x border-white/[0.08]"
-                style={{ background: "#111827", boxShadow: "0 -24px 64px rgba(0,0,0,0.7)" }}
-              >
-                {/* Handle */}
-                <div className="w-9 h-1 rounded-full bg-white/15 mx-auto mb-6" />
+      {/* ══ Deposit Dialog ══ */}
+      <Dialog open={showDepositModal} onOpenChange={(o) => !isDepositing && setShowDepositModal(o)}>
+        <DialogContent className="max-w-md">
+          <DialogTitle className="font-playfair italic text-2xl mb-1">Add FLOW</DialogTitle>
+          <DialogDescription className="mb-6">
+            Your deposit is always safe. Only the profit it earns is ever used.
+          </DialogDescription>
 
-                <h2 className="font-orbitron font-bold text-white text-base mb-1">
-                  Deposit FLOW
-                </h2>
-                <p className="text-slate-500 text-sm mb-6">
-                  Your principal is always protected. Only yield gets used.
-                </p>
-
-                {/* Amount input */}
-                <div className="mb-5">
-                  <label className="block text-slate-600 text-xs mb-2 font-medium">
-                    Amount · 1 – 1000 FLOW
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min="1" max="1000" step="1"
-                      value={depositAmount}
-                      onChange={(e) => { setDepositAmount(e.target.value); setDepositError(""); }}
-                      className="w-full bg-[#1E293B] border border-white/[0.08] rounded-xl px-4 py-3 text-white font-orbitron text-xl focus:outline-none focus:border-amber-500/40 transition-colors duration-150 pr-16 tabular-nums"
-                      placeholder="10"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 text-sm font-orbitron">
-                      FLOW
-                    </span>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    {["10", "25", "50", "100"].map((amt) => (
-                      <button
-                        key={amt}
-                        onClick={() => setDepositAmount(amt)}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
-                          depositAmount === amt
-                            ? "bg-amber-500/15 text-amber-400 border border-amber-500/35"
-                            : "bg-white/[0.04] text-slate-500 border border-white/[0.07] hover:bg-white/[0.07] hover:text-slate-300"
-                        }`}
-                      >
-                        {amt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {depositError && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                    className="text-red-400 text-xs mb-4"
-                  >
-                    {depositError}
-                  </motion.p>
-                )}
-
+          <div className="mb-5">
+            <label className="block text-white/45 text-xs mb-2 font-medium">
+              Amount · 1 to 1000 FLOW
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                min="1" max="1000" step="1"
+                value={depositAmount}
+                onChange={(e) => { setDepositAmount(e.target.value); setDepositError(""); }}
+                className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3 text-white text-xl font-semibold focus:outline-none focus:border-[#e8702a]/50 transition-colors pr-16 tabular-nums"
+                placeholder="10"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 text-sm">
+                FLOW
+              </span>
+            </div>
+            <div className="flex gap-2 mt-2.5">
+              {["10", "25", "50", "100"].map((amt) => (
                 <button
-                  onClick={handleDeposit}
-                  disabled={isDepositing}
-                  className="w-full py-3.5 rounded-xl font-orbitron font-bold text-sm text-black disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all duration-200 hover:brightness-110 active:scale-[0.99] flex items-center justify-center gap-2"
-                  style={{ background: "linear-gradient(135deg, #F59E0B, #FBBF24)", boxShadow: "0 0 20px rgba(245,158,11,0.22)" }}
+                  key={amt}
+                  onClick={() => setDepositAmount(amt)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                    depositAmount === amt
+                      ? "bg-[#e8702a]/15 text-[#f0934f] border-[#e8702a]/40"
+                      : "bg-white/[0.04] text-white/50 border-white/10 hover:bg-white/[0.08] hover:text-white/80"
+                  }`}
                 >
-                  {isDepositing ? (
-                    <><span className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" /> Processing…</>
-                  ) : `Deposit ${depositAmount || "0"} FLOW`}
+                  {amt}
                 </button>
+              ))}
+            </div>
+          </div>
 
-                {!isDepositing && (
-                  <button
-                    onClick={() => setShowDepositModal(false)}
-                    className="w-full mt-3 py-2.5 text-slate-600 text-sm hover:text-slate-400 transition-colors duration-150 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          {depositError && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+              className="text-red-400 text-xs mb-4"
+            >
+              {depositError}
+            </motion.p>
+          )}
+
+          <Button
+            variant="primary"
+            onClick={handleDeposit}
+            disabled={isDepositing}
+            className="w-full h-12"
+          >
+            {isDepositing ? (
+              <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</>
+            ) : `Add ${depositAmount || "0"} FLOW`}
+          </Button>
+
+          {!isDepositing && (
+            <button
+              onClick={() => setShowDepositModal(false)}
+              className="w-full mt-3 py-2.5 text-white/40 text-sm hover:text-white/70 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

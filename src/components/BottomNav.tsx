@@ -59,7 +59,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-xl border-t border-white/8">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-xl border-t border-white/[0.08]">
       <div className="flex items-center justify-around max-w-480px mx-auto px-2 pt-2 pb-safe pb-2">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.path || (item.path !== "/app" && pathname.startsWith(item.path));
@@ -68,14 +68,11 @@ export default function BottomNav() {
             <button
               key={item.id}
               onClick={() => router.push(item.path)}
-              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer ${
-                isActive
-                  ? "text-yellow-400"
-                  : "text-slate-500 hover:text-slate-300"
-              }`}
+              className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 cursor-pointer"
+              style={{ color: isActive ? "#e8702a" : "rgba(255,255,255,0.4)" }}
             >
               <Icon active={isActive} />
-              <span className={`text-xs font-medium ${isActive ? "text-yellow-400" : "text-slate-500"}`}>
+              <span className="text-xs font-medium">
                 {item.label}
               </span>
             </button>

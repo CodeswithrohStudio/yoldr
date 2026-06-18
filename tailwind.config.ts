@@ -11,12 +11,15 @@ const config: Config = {
       fontFamily: {
         orbitron: ["Orbitron", "sans-serif"],
         exo: ["Exo 2", "sans-serif"],
+        inter: ["Inter", "sans-serif"],
+        playfair: ["Playfair Display", "serif"],
       },
       colors: {
         primary: "#F59E0B",
         cta: "#8B5CF6",
         surface: "#1E293B",
         "surface-2": "#0F172A",
+        accent: "#e8702a",
       },
       maxWidth: {
         "480px": "480px",
@@ -27,6 +30,6 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [require("tailwindcss-animate")],
 };
 export default config;

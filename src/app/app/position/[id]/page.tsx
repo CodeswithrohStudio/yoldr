@@ -3,8 +3,15 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useParams } from "next/navigation";
-import { fcl, TRANSACTIONS, SHIELDS, PET_EMOJI, ASSET_EMOJI } from "@/lib/flow";
+import { ChevronLeft, ShieldCheck, ArrowUp, Search, Zap } from "lucide-react";
+import { fcl, TRANSACTIONS, SHIELDS } from "@/lib/flow";
 import { useYoldrStore } from "@/store/useYoldrStore";
+import { assetVisual } from "@/lib/shieldVisuals";
+import { AssetLogo } from "@/components/ui/asset-logo";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+
+const ACCENT = "#e8702a";
 
 function timeAgo(timestampSeconds: number): string {
   const nowSeconds = Math.floor(Date.now() / 1000);
@@ -19,20 +26,21 @@ function timeAgo(timestampSeconds: number): string {
 }
 
 function formatPrice(price: number): string {
-  if (price >= 1000) {
-    return `$${price.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-  }
+  if (price >= 1000) return `$${price.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
   return `$${price.toFixed(4)}`;
 }
+function formatPnL(pnl: number): string { return `${pnl >= 0 ? "+" : ""}${pnl.toFixed(4)} FLOW`; }
+function formatReturnPct(pct: number): string { return `${pct >= 0 ? "+" : ""}${(pct * 100).toFixed(2)}%`; }
 
-function formatPnL(pnl: number): string {
-  const sign = pnl >= 0 ? "+" : "";
-  return `${sign}${pnl.toFixed(4)} FLOW`;
-}
-
-function formatReturnPct(pct: number): string {
-  const sign = pct >= 0 ? "+" : "";
-  return `${sign}${(pct * 100).toFixed(2)}%`;
+function Header({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="sticky top-0 z-20 flex items-center gap-3 px-4 sm:px-6 pt-10 lg:pt-6 pb-5 bg-black/85 backdrop-blur-md border-b border-white/[0.07]">
+      <Button variant="outline" size="icon" onClick={onBack} aria-label="Go back" className="rounded-xl">
+        <ChevronLeft size={18} />
+      </Button>
+      <h1 className="font-playfair italic text-2xl text-white">Your shield</h1>
+    </div>
+  );
 }
 
 export default function PositionDetailPage() {
@@ -44,16 +52,9 @@ export default function PositionDetailPage() {
   const [isClosing, setIsClosing] = useState(false);
 
   const position = positions.find((p) => p.id === positionId) ?? null;
+  const shield = position ? (SHIELDS[position.shieldType as keyof typeof SHIELDS] ?? null) : null;
 
-  const shield = position
-    ? (SHIELDS[position.shieldType as keyof typeof SHIELDS] ?? null)
-    : null;
-
-  const livePrice =
-    position && prices[position.asset] != null
-      ? prices[position.asset]
-      : position?.currentPrice ?? 0;
-
+  const livePrice = position && prices[position.asset] != null ? prices[position.asset] : position?.currentPrice ?? 0;
   const openPrice = position?.openPrice ?? 0;
   const leverage = position?.leverage ?? 1;
   const depositAmount = position?.depositAmount ?? 0;
@@ -61,16 +62,10 @@ export default function PositionDetailPage() {
   const rawPriceChangePct = openPrice > 0 ? (livePrice - openPrice) / openPrice : 0;
   const returnPct = rawPriceChangePct * leverage;
   const pnlFlow = depositAmount * returnPct;
-
   const marginHealthPct = Math.max(0, Math.min(100, 100 + returnPct * 100));
 
-  const petType = shield?.petType ?? "Griffin";
-  const petEmoji = PET_EMOJI[petType] ?? "🛡️";
-  const assetEmoji = position ? (ASSET_EMOJI[position.asset] ?? position.asset) : "";
-
-  const openedAgo = position ? timeAgo(position.openTimestamp) : "—";
+  const openedAgo = position ? timeAgo(position.openTimestamp) : "n/a";
   const isProfit = returnPct >= 0;
-
   const priceArrowUp = livePrice >= openPrice;
 
   async function closePosition() {
@@ -84,10 +79,7 @@ export default function PositionDetailPage() {
         limit: 999,
       });
       await fcl.tx(txId).onceSealed();
-      addToast({
-        message: "Position closed! Check your badges.",
-        type: "success",
-      });
+      addToast({ message: "Shield closed! Check your badges.", type: "success" });
       router.replace("/app/badges");
     } catch (err) {
       addToast({
@@ -101,290 +93,172 @@ export default function PositionDetailPage() {
 
   if (!position) {
     return (
-      <div className="page-container bg-[#0F172A] min-h-dvh flex flex-col">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-12 pb-6 border-b border-white/5">
-          <button
-            onClick={() => router.back()}
-            className="w-9 h-9 flex items-center justify-center rounded-xl glass hover:bg-white/10 transition-colors shrink-0"
-            aria-label="Go back"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M11 14L6 9L11 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          <h1 className="font-orbitron text-xl font-bold text-white tracking-wide">Active Position</h1>
-        </div>
+      <div className="min-h-dvh bg-black text-white flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
+        <Header onBack={() => router.back()} />
         <div className="flex-1 flex flex-col items-center justify-center px-4 gap-4">
-          <span className="text-5xl">🔍</span>
-          <p className="font-orbitron text-lg font-bold text-white text-center">Position not found</p>
-          <p className="text-sm text-slate-400 text-center">This position may have already been closed.</p>
-          <button
-            onClick={() => router.back()}
-            className="mt-2 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold font-orbitron text-sm transition-colors"
-          >
-            Go Back
-          </button>
+          <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center">
+            <Search size={26} className="text-white/30" />
+          </div>
+          <p className="text-lg font-semibold text-white text-center">Shield not found</p>
+          <p className="text-sm text-white/45 text-center">It may have already been closed.</p>
+          <Button variant="outline" onClick={() => router.back()} className="mt-2">Go back</Button>
         </div>
       </div>
     );
   }
 
+  const v = assetVisual(position.asset);
+
   return (
-    <div className="page-container bg-[#0F172A] min-h-dvh pb-32">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-5 sticky top-0 z-20 bg-[#0F172A]/95 backdrop-blur-md border-b border-white/5">
-        <button
-          onClick={() => router.back()}
-          className="w-9 h-9 flex items-center justify-center rounded-xl glass hover:bg-white/10 transition-colors shrink-0"
-          aria-label="Go back"
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M11 14L6 9L11 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <h1 className="font-orbitron text-xl font-bold text-white tracking-wide">Active Position</h1>
-      </div>
+    <div className="min-h-dvh bg-black text-white tracking-[-0.02em] pb-36" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <Header onBack={() => router.back()} />
 
-      <div className="px-4 flex flex-col gap-5 pt-4">
-        {/* Hero: pet + asset */}
-        <div className="flex flex-col items-center gap-2 py-4">
-          <motion.div
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-            className="relative"
-          >
-            <div
-              className={`w-28 h-28 rounded-3xl ${shield ? `bg-gradient-to-br ${shield.color}` : "bg-gradient-to-br from-purple-500 to-violet-600"} bg-opacity-20 flex items-center justify-center`}
-              style={{
-                boxShadow: shield
-                  ? undefined
-                  : "0 0 30px rgba(139,92,246,0.3)",
-              }}
-            >
-              <span className="text-6xl" role="img" aria-label={petType}>
-                {petEmoji}
-              </span>
-            </div>
-            {/* Shield badge */}
-            <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-base border-2 border-[#0F172A]">
-              🛡️
-            </div>
+      <div className="max-w-xl mx-auto px-4 sm:px-6 flex flex-col gap-4 pt-5">
+        {/* Hero: asset */}
+        <div className="flex flex-col items-center gap-3 py-3">
+          <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}>
+            <AssetLogo asset={position.asset} size={96} className="rounded-3xl" />
           </motion.div>
-
-          <div className="text-center mt-2">
-            <div className="font-orbitron text-2xl font-bold text-white">
-              {assetEmoji} {position.asset}
-            </div>
-            <div className="text-sm text-slate-400 mt-0.5">
+          <div className="text-center">
+            <div className="text-2xl font-semibold text-white">{v.label}</div>
+            <div className="text-sm text-white/45 mt-0.5">
               {shield?.name ?? position.shieldType} · {position.leverage}x leverage
             </div>
           </div>
         </div>
 
         {/* Live P&L */}
-        <div className="glass rounded-2xl p-5 border border-white/8 text-center">
-          <div className="text-xs text-slate-400 uppercase tracking-widest mb-1 font-medium">Live P&L</div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-center">
+          <div className="text-xs text-white/40 uppercase tracking-widest mb-2 font-medium">Live profit &amp; loss</div>
           <motion.div
             key={pnlFlow.toFixed(4)}
-            initial={{ scale: 0.95, opacity: 0.7 }}
+            initial={{ scale: 0.96, opacity: 0.7 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.3 }}
-            className={`font-orbitron text-4xl font-bold tracking-tight ${isProfit ? "text-green-400" : "text-red-400"}`}
+            className={`text-4xl font-bold tracking-tight tabular-nums ${isProfit ? "text-emerald-400" : "text-red-400"}`}
           >
             {formatPnL(pnlFlow)}
           </motion.div>
-          <div
-            className={`mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold font-orbitron ${
-              isProfit
-                ? "bg-green-500/15 text-green-400 border border-green-500/25"
-                : "bg-red-500/15 text-red-400 border border-red-500/25"
-            }`}
-          >
+          <div className={`mt-3 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold border ${
+            isProfit ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" : "bg-red-500/15 text-red-400 border-red-500/25"
+          }`}>
             {isProfit ? "▲" : "▼"} {formatReturnPct(returnPct)}
           </div>
         </div>
 
-        {/* Principal safety bar */}
-        <div className="glass rounded-2xl p-4 border border-green-500/20 bg-green-500/5">
-          <div className="flex items-center justify-between mb-2">
+        {/* Principal safety */}
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4">
+          <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-2">
-              <span className="text-base">🔒</span>
-              <span className="text-sm font-semibold text-green-300">Principal</span>
+              <ShieldCheck size={16} className="text-emerald-400" strokeWidth={2} />
+              <span className="text-sm font-semibold text-emerald-300">Your deposit</span>
             </div>
-            <span className="text-xs font-bold text-green-400 font-orbitron">Always Safe</span>
+            <span className="text-xs font-semibold text-emerald-400">Always safe</span>
           </div>
-          <div className="progress-bar mb-1.5">
-            <motion.div
-              className="h-full rounded-full bg-gradient-to-r from-green-500 to-emerald-400"
-              initial={{ width: "0%" }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400">Your 100 FLOW — Always Safe</span>
-            <span className="text-xs text-green-400 font-bold">100%</span>
+          <Progress value={100} indicatorClassName="bg-emerald-500" />
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-xs text-white/45">Locked in the vault, never at risk</span>
+            <span className="text-xs text-emerald-400 font-semibold">100%</span>
           </div>
         </div>
 
-        {/* Margin health bar */}
-        <div className="glass rounded-2xl p-4 border border-white/8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-slate-300">Margin Health</span>
-            <span
-              className={`text-xs font-bold font-orbitron ${
-                marginHealthPct >= 70 ? "text-green-400" : marginHealthPct >= 40 ? "text-yellow-400" : "text-red-400"
-              }`}
-            >
+        {/* Margin health */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-sm font-semibold text-white/80">Margin health</span>
+            <span className={`text-xs font-semibold tabular-nums ${
+              marginHealthPct >= 70 ? "text-emerald-400" : marginHealthPct >= 40 ? "text-amber-400" : "text-red-400"
+            }`}>
               {marginHealthPct.toFixed(0)}%
             </span>
           </div>
-          <div className="progress-bar mb-1.5">
-            <motion.div
-              className={`h-full rounded-full ${
-                marginHealthPct >= 70
-                  ? "bg-gradient-to-r from-green-500 to-emerald-400"
-                  : marginHealthPct >= 40
-                  ? "bg-gradient-to-r from-yellow-500 to-amber-400"
-                  : "bg-gradient-to-r from-red-500 to-orange-400"
-              }`}
-              initial={{ width: "0%" }}
-              animate={{ width: `${marginHealthPct}%` }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            />
-          </div>
-          <div className="text-xs text-slate-400">Position health based on leverage and price movement</div>
+          <Progress
+            value={marginHealthPct}
+            indicatorClassName={marginHealthPct >= 70 ? "bg-emerald-500" : marginHealthPct >= 40 ? "bg-amber-500" : "bg-red-500"}
+          />
+          <div className="text-xs text-white/40 mt-2">Based on your leverage and how the price has moved</div>
         </div>
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Yield deployed */}
-          <div className="glass rounded-2xl p-4 border border-amber-500/20 bg-amber-500/5">
-            <div className="text-xs text-slate-400 mb-1">Yield as Margin</div>
-            <div className="font-orbitron text-lg font-bold text-amber-400">
-              {depositAmount.toFixed(4)}
-            </div>
-            <div className="text-xs text-slate-500 mt-0.5">FLOW deployed</div>
+          <div className="rounded-2xl border border-[#e8702a]/20 bg-[#e8702a]/[0.05] p-4">
+            <div className="text-xs text-white/45 mb-1">Profit at work</div>
+            <div className="text-lg font-semibold tabular-nums" style={{ color: ACCENT }}>{depositAmount.toFixed(4)}</div>
+            <div className="text-xs text-white/35 mt-0.5">FLOW deployed</div>
           </div>
-
-          {/* Timeline */}
-          <div className="glass rounded-2xl p-4 border border-white/8">
-            <div className="text-xs text-slate-400 mb-1">Opened</div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="text-xs text-white/45 mb-1">Opened</div>
             <div className="text-sm font-semibold text-white leading-snug">{openedAgo}</div>
-            <div className="text-xs text-slate-500 mt-0.5">
-              {new Date(position.openTimestamp * 1000).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
+            <div className="text-xs text-white/35 mt-0.5">
+              {new Date(position.openTimestamp * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
             </div>
           </div>
         </div>
 
-        {/* Price comparison */}
-        <div className="glass rounded-2xl p-4 border border-white/8">
-          <div className="text-xs text-slate-400 uppercase tracking-widest mb-3 font-medium">Price Movement</div>
+        {/* Price movement */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="text-xs text-white/40 uppercase tracking-widest mb-3 font-medium">Price movement</div>
           <div className="flex items-center justify-between gap-3">
-            {/* Open price */}
             <div className="flex-1">
-              <div className="text-xs text-slate-500 mb-0.5">Open Price</div>
-              <div className="font-orbitron text-base font-bold text-slate-200">{formatPrice(openPrice)}</div>
+              <div className="text-xs text-white/35 mb-0.5">Open price</div>
+              <div className="text-base font-semibold text-white/85 tabular-nums">{formatPrice(openPrice)}</div>
             </div>
-
-            {/* Arrow indicator */}
-            <div
-              className={`flex flex-col items-center gap-0.5 ${priceArrowUp ? "text-green-400" : "text-red-400"}`}
-            >
+            <div className={`flex flex-col items-center gap-0.5 ${priceArrowUp ? "text-emerald-400" : "text-red-400"}`}>
               <motion.div
                 animate={{ y: priceArrowUp ? [0, -3, 0] : [0, 3, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                style={{ transform: priceArrowUp ? "none" : "rotate(180deg)" }}
               >
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  style={{ transform: priceArrowUp ? "none" : "rotate(180deg)" }}
-                >
-                  <path
-                    d="M12 19V5M5 12l7-7 7 7"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <ArrowUp size={26} strokeWidth={2} />
               </motion.div>
-              <span className="text-xs font-bold">
-                {priceArrowUp ? "+" : ""}
-                {(rawPriceChangePct * 100).toFixed(2)}%
-              </span>
+              <span className="text-xs font-semibold tabular-nums">{priceArrowUp ? "+" : ""}{(rawPriceChangePct * 100).toFixed(2)}%</span>
             </div>
-
-            {/* Current price */}
             <div className="flex-1 text-right">
-              <div className="text-xs text-slate-500 mb-0.5">Current Price</div>
-              <div
-                className={`font-orbitron text-base font-bold ${priceArrowUp ? "text-green-400" : "text-red-400"}`}
-              >
+              <div className="text-xs text-white/35 mb-0.5">Current price</div>
+              <div className={`text-base font-semibold tabular-nums ${priceArrowUp ? "text-emerald-400" : "text-red-400"}`}>
                 {formatPrice(livePrice)}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Shield info row */}
+        {/* Shield info */}
         {shield && (
-          <div className={`glass rounded-2xl p-4 border ${shield.borderColor} ${shield.bgColor}`}>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <div className="flex items-center gap-3">
-              <div
-                className={`w-10 h-10 rounded-xl bg-gradient-to-br ${shield.color} flex items-center justify-center text-xl shrink-0`}
-              >
-                {petEmoji}
-              </div>
+              <AssetLogo asset={position.asset} size={40} />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-white">{shield.name}</div>
-                <div className="text-xs text-slate-400 truncate">{shield.description}</div>
+                <div className="text-xs text-white/40 truncate">{shield.description}</div>
               </div>
-              <div
-                className={`text-xs font-bold px-2.5 py-1 rounded-full font-orbitron bg-gradient-to-r ${shield.color} text-white shrink-0`}
-              >
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0" style={{ color: v.accent, borderColor: `${v.accent}55`, background: `${v.accent}14` }}>
                 {shield.leverage}x
-              </div>
+              </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Close position button — fixed at bottom */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-4 pb-6 pt-3 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/95 to-transparent z-30">
+      {/* Close button - fixed at bottom */}
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-xl px-4 sm:px-6 pb-6 pt-4 bg-gradient-to-t from-black via-black/95 to-transparent z-30">
         <button
           onClick={closePosition}
           disabled={isClosing}
-          className="w-full py-4 rounded-2xl font-orbitron font-bold text-sm tracking-wide transition-all duration-200 flex items-center justify-center gap-2
-            bg-gradient-to-r from-red-600 to-rose-500 text-white shadow-lg
-            disabled:opacity-60 disabled:cursor-not-allowed
-            hover:scale-[1.02] active:scale-[0.98]"
+          className="w-full py-4 rounded-full font-semibold text-sm transition-all flex items-center justify-center gap-2 bg-red-600 text-white hover:bg-red-500 disabled:opacity-60 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.99]"
         >
           {isClosing ? (
             <>
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
-              />
-              Closing Position...
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+              Closing...
             </>
           ) : (
             <>
-              <span>⚡</span>
-              Close Position
+              <Zap size={16} strokeWidth={2.2} />
+              Close shield
             </>
           )}
         </button>
-        <p className="text-center text-xs text-slate-500 mt-2">
-          Closing will mint a badge and return your FLOW
-        </p>
+        <p className="text-center text-xs text-white/35 mt-2.5">Closing mints a badge and returns your FLOW</p>
       </div>
     </div>
   );

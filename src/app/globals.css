@@ -126,6 +126,8 @@ h1, h2, h3, .font-orbitron {
 
 /* ── Editorial landing-page typography ─────────────────────────────────── */
 .font-playfair { font-family: 'Playfair Display', serif; }
+/* Opt headings out of the global Orbitron rule (class beats element selector). */
+.font-inter { font-family: 'Inter', sans-serif; }
 
 /* ── Premium on-load hero animations ──────────────────────────────────── */
 @keyframes heroReveal {
