@@ -113,7 +113,7 @@ export default function PositionDetailPage() {
     <div className="min-h-dvh bg-black text-white tracking-[-0.02em] pb-36" style={{ fontFamily: "'Inter', sans-serif" }}>
       <Header onBack={() => router.back()} />
 
-      <div className="max-w-xl mx-auto px-4 sm:px-6 flex flex-col gap-4 pt-5">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-10 flex flex-col gap-4 pt-5">
         {/* Hero: asset */}
         <div className="flex flex-col items-center gap-3 py-3">
           <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}>
@@ -145,6 +145,9 @@ export default function PositionDetailPage() {
             {isProfit ? "▲" : "▼"} {formatReturnPct(returnPct)}
           </div>
         </div>
+
+        {/* Detail cards — two columns on desktop */}
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
 
         {/* Principal safety */}
         <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4">
@@ -224,7 +227,7 @@ export default function PositionDetailPage() {
 
         {/* Shield info */}
         {shield && (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <div className="flex items-center gap-3">
               <AssetLogo asset={position.asset} size={40} />
               <div className="flex-1 min-w-0">
@@ -237,10 +240,11 @@ export default function PositionDetailPage() {
             </div>
           </div>
         )}
+        </div>{/* end detail grid */}
       </div>
 
-      {/* Close button - fixed at bottom */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-xl px-4 sm:px-6 pb-6 pt-4 bg-gradient-to-t from-black via-black/95 to-transparent z-30">
+      {/* Close button - fixed at bottom (offset past the sidebar on desktop) */}
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 lg:left-[calc(50%+8rem)] w-full max-w-3xl px-4 sm:px-6 lg:px-10 pb-6 pt-4 bg-gradient-to-t from-black via-black/95 to-transparent z-30">
         <button
           onClick={closePosition}
           disabled={isClosing}

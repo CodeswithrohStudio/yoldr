@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { fcl } from "@/lib/flow";
 import { useYoldrStore } from "@/store/useYoldrStore";
 import BottomNav from "@/components/BottomNav";
+import AppSidebar from "@/components/AppSidebar";
 import ToastNotifications from "@/components/ToastNotifications";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -27,7 +28,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <ToastNotifications />
-      <div className="pb-20 lg:pb-0 min-h-dvh">
+      <AppSidebar />
+      <div className="pb-20 lg:pb-0 lg:pl-64 min-h-dvh bg-black">
         {children}
       </div>
       <BottomNav />

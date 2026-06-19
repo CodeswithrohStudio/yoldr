@@ -274,8 +274,8 @@ export default function LeaderboardPage() {
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
       {/* ── Header ── */}
-      <div className="sticky top-0 z-20 bg-black/85 backdrop-blur-md border-b border-white/[0.07] px-4 sm:px-6 pt-10 lg:pt-6 pb-4">
-        <div className="max-w-3xl mx-auto">
+      <div className="sticky top-0 z-20 bg-black/85 backdrop-blur-md border-b border-white/[0.07] px-4 sm:px-6 lg:px-10 pt-10 lg:pt-6 pb-4">
+        <div className="max-w-5xl mx-auto">
           <div className="flex items-start justify-between mb-1">
             <div>
               <h1 className="font-playfair italic text-3xl text-white">Leaderboard</h1>
@@ -315,35 +315,58 @@ export default function LeaderboardPage() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-28">
-        {/* User rank callout */}
-        {user?.addr && userRank > 0 && entries.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-5 mb-5 flex items-center justify-between rounded-2xl border border-[#e8702a]/25 bg-[#e8702a]/[0.06] px-5 py-4"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${ACCENT}1a`, boxShadow: `inset 0 0 0 1px ${ACCENT}44` }}>
-                <Trophy size={18} style={{ color: ACCENT }} />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 pb-28 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-6 lg:items-start">
+        {/* Right rail: your standing + top 3 */}
+        <aside className="lg:order-2 mt-5 space-y-4 lg:sticky lg:top-6">
+          {user?.addr && userRank > 0 && entries.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border border-[#e8702a]/25 bg-[#e8702a]/[0.06] p-5"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${ACCENT}1a`, boxShadow: `inset 0 0 0 1px ${ACCENT}44` }}>
+                  <Trophy size={18} style={{ color: ACCENT }} />
+                </div>
+                <div>
+                  <p className="text-xs text-white/45">Your rank</p>
+                  <p className="text-2xl font-bold" style={{ color: ACCENT }}>#{userRank}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-white/45">Your rank</p>
-                <p className="text-xl font-bold" style={{ color: ACCENT }}>#{userRank}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <p className="text-[10px] text-white/45 mb-0.5">XP</p>
+                  <p className="text-base font-bold text-white tabular-nums">{userXp.toLocaleString()}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <p className="text-[10px] text-white/45 mb-0.5">Players</p>
+                  <p className="text-base font-bold text-white tabular-nums">{entries.length}</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {sorted.length > 0 && (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.15em] mb-3">Top 3</p>
+              <div className="flex flex-col gap-3">
+                {sorted.slice(0, 3).map((e, i) => (
+                  <div key={e.addr} className="flex items-center gap-2.5">
+                    <RankChip rank={i + 1} />
+                    <GradientAvatar addr={e.addr} size={28} />
+                    <span className="font-mono text-xs text-white/70 flex-1 truncate">{truncateAddr(e.addr)}</span>
+                    <span className="text-xs font-bold tabular-nums" style={{ color: RANK_TINT[i + 1]?.color ?? "#fff" }}>
+                      {e.xp.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="flex items-center gap-7">
-              <div className="text-right">
-                <p className="text-xs text-white/45">XP</p>
-                <p className="text-base font-bold text-white tabular-nums">{userXp.toLocaleString()}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-white/45">Players</p>
-                <p className="text-base font-bold text-white tabular-nums">{entries.length}</p>
-              </div>
-            </div>
-          </motion.div>
-        )}
+          )}
+        </aside>
+
+        {/* Main list column */}
+        <div className="lg:order-1 min-w-0">
 
         {/* Error banner */}
         <AnimatePresence>
@@ -405,6 +428,7 @@ export default function LeaderboardPage() {
             Showing players who joined in the last 7 days
           </motion.p>
         )}
+        </div>{/* end main list column */}
       </div>
     </div>
   );

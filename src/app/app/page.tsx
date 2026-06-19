@@ -11,9 +11,11 @@ import {
   Lock, TrendingUp, Landmark, Shield, Plus, ArrowUpRight,
   Wallet, ChevronRight, Activity, Clock,
 } from "lucide-react";
+import { Icon } from "@iconify/react";
 import { fcl, SCRIPTS, TRANSACTIONS } from "@/lib/flow";
 import { fetchLivePrices } from "@/lib/prices";
 import { useYoldrStore } from "@/store/useYoldrStore";
+import { petIcon } from "@/lib/shieldVisuals";
 import DepositLoadingScreen from "@/components/DepositLoadingScreen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +28,7 @@ import {
 import { AssetLogo } from "@/components/ui/asset-logo";
 
 const ACCENT = "#e8702a";
+const MARKET_ASSETS = ["GOLD", "BTC", "ETH", "FLOW"];
 
 /* ─── helpers ─────────────────────────────────────────────── */
 
@@ -57,7 +60,7 @@ function AnimatedNumber({ value, decimals = 4 }: { value: number; decimals?: num
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, vault, positions, setVault, setPet, setPositions, addToast } =
+  const { user, vault, pet, positions, prices, setVault, setPet, setPositions, setPrices, addToast } =
     useYoldrStore();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -208,6 +211,20 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, [vault]);
 
+  // Market prices for the right-rail Markets widget
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const p = await fetchLivePrices(MARKET_ASSETS);
+        if (alive) setPrices(p);
+      } catch { /* keep last */ }
+    };
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, [setPrices]);
+
   // Chart data
   const { chartData, nowLabel, proj30d, daysSinceDeposit } = useMemo(() => {
     if (!vault || vault.principal <= 0)
@@ -281,8 +298,8 @@ export default function DashboardPage() {
     >
       <DepositLoadingScreen show={isDepositing} petType="Griffin" amount={depositAmount} />
 
-      {/* ══ Sticky header ══ */}
-      <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-black/80 backdrop-blur-xl">
+      {/* ══ Sticky header (mobile only — sidebar handles desktop) ══ */}
+      <header className="lg:hidden sticky top-0 z-30 border-b border-white/[0.07] bg-black/80 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <span className="font-playfair italic text-2xl text-white shrink-0">Yoldr</span>
 
@@ -324,7 +341,7 @@ export default function DashboardPage() {
       </header>
 
       {/* ══ Main ══ */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-20">
+      <main className="max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-10 pt-6 lg:pt-9 pb-20">
 
         {/* ── Skeleton loading ── */}
         {isLoading && (
@@ -415,6 +432,10 @@ export default function DashboardPage() {
                 5% APY
               </Badge>
             </motion.div>
+
+            {/* ── Desktop two-column: main column + right rail ── */}
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-7 lg:items-start">
+              <div className="min-w-0">
 
             {/* ── Stat cards ── */}
             <motion.div
@@ -700,6 +721,21 @@ export default function DashboardPage() {
                 </p>
               </motion.div>
             )}
+
+              </div>{/* end main column */}
+
+              {/* ── Right rail (desktop fills the width; stacks on mobile) ── */}
+              <motion.aside
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25, duration: 0.4 }}
+                className="mt-4 lg:mt-0 space-y-4 lg:sticky lg:top-9"
+              >
+                <VaultPetCard pet={pet} />
+                <StreakXpCard streak={vault.streakCount} xp={vault.xpPoints} />
+                <MarketsCard prices={prices} />
+              </motion.aside>
+            </div>{/* end grid */}
           </>
         )}
       </main>
@@ -777,5 +813,103 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/* ─── right-rail widgets ──────────────────────────────────── */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function VaultPetCard({ pet }: { pet: any }) {
+  if (!pet) {
+    return (
+      <Card className="p-5">
+        <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.15em] mb-3">Vault pet</p>
+        <p className="text-sm text-white/45 leading-relaxed">
+          Open your first shield to hatch a vault pet that levels up as you play.
+        </p>
+      </Card>
+    );
+  }
+  const health = Math.max(0, Math.min(100, pet.health ?? 0));
+  return (
+    <Card className="p-5">
+      <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.15em] mb-4">Vault pet</p>
+      <div className="flex items-center gap-4">
+        <div
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl"
+          style={{ background: `linear-gradient(135deg, ${ACCENT}26, transparent)`, boxShadow: `inset 0 0 0 1px ${ACCENT}33` }}
+        >
+          <Icon icon={petIcon(pet.petType)} width={34} height={34} style={{ color: ACCENT }} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-base font-semibold text-white truncate">{pet.petType}</p>
+          <div className="mt-1 flex items-center gap-2">
+            <Badge variant="accent">Level {pet.level}</Badge>
+            <span className="text-xs text-white/45 tabular-nums">{pet.xp} XP</span>
+          </div>
+        </div>
+      </div>
+      <div className="mt-4">
+        <div className="flex justify-between text-[10px] text-white/40 mb-1.5">
+          <span>Health</span>
+          <span className="tabular-nums">{health.toFixed(0)}%</span>
+        </div>
+        <Progress value={health} indicatorClassName={health >= 50 ? "bg-emerald-500" : "bg-amber-500"} />
+      </div>
+    </Card>
+  );
+}
+
+function StreakXpCard({ streak, xp }: { streak: number; xp: number }) {
+  return (
+    <Card className="p-5">
+      <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.15em] mb-4">Your progress</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Icon icon="solar:fire-bold" width={15} style={{ color: ACCENT }} />
+            <span className="text-[10px] text-white/40 uppercase tracking-wider">Streak</span>
+          </div>
+          <p className="text-2xl font-semibold text-white tabular-nums leading-none">{streak}</p>
+          <p className="text-[10px] text-white/35 mt-1">day{streak !== 1 ? "s" : ""}</p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Icon icon="solar:bolt-bold" width={15} style={{ color: ACCENT }} />
+            <span className="text-[10px] text-white/40 uppercase tracking-wider">XP</span>
+          </div>
+          <p className="text-2xl font-semibold text-white tabular-nums leading-none">{xp.toLocaleString()}</p>
+          <p className="text-[10px] text-white/35 mt-1">total</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function fmtPrice(p: number): string {
+  if (!p) return "—";
+  if (p >= 1000) return `$${p.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  if (p >= 1) return `$${p.toFixed(2)}`;
+  return `$${p.toFixed(4)}`;
+}
+
+function MarketsCard({ prices }: { prices: Record<string, number> }) {
+  return (
+    <Card className="p-5">
+      <p className="text-[10px] font-medium text-white/35 uppercase tracking-[0.15em] mb-3">Markets</p>
+      <div className="flex flex-col">
+        {MARKET_ASSETS.map((a, i) => (
+          <div
+            key={a}
+            className={`flex items-center gap-3 py-2.5 ${i !== MARKET_ASSETS.length - 1 ? "border-b border-white/[0.06]" : ""}`}
+          >
+            <AssetLogo asset={a} size={32} />
+            <span className="text-sm text-white/75 flex-1">{a}</span>
+            <span className="text-sm font-semibold text-white tabular-nums">{fmtPrice(prices[a])}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[10px] text-white/25">Live spot prices · refreshed each minute</p>
+    </Card>
   );
 }

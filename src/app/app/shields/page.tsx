@@ -148,16 +148,18 @@ export default function ShieldsPage() {
       </Dialog>
 
       {/* Header */}
-      <div className="sticky top-0 z-20 flex items-center gap-3 px-4 sm:px-6 pt-10 lg:pt-6 pb-5 bg-black/85 backdrop-blur-md border-b border-white/[0.07]">
-        <Button variant="outline" size="icon" onClick={() => router.back()} aria-label="Go back" className="rounded-xl">
-          <ChevronLeft size={18} />
-        </Button>
-        <h1 className="font-playfair italic text-2xl text-white">Pick your shield</h1>
+      <div className="sticky top-0 z-20 bg-black/85 backdrop-blur-md border-b border-white/[0.07]">
+        <div className="max-w-5xl mx-auto flex items-center gap-3 px-4 sm:px-6 lg:px-10 pt-10 lg:pt-6 pb-5">
+          <Button variant="outline" size="icon" onClick={() => router.back()} aria-label="Go back" className="rounded-xl lg:hidden">
+            <ChevronLeft size={18} />
+          </Button>
+          <h1 className="font-playfair italic text-2xl text-white">Pick your shield</h1>
+        </div>
       </div>
 
       {/* Intro blurb */}
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6 pb-2">
-        <p className="text-white/55 text-sm leading-relaxed">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 pt-6 pb-2">
+        <p className="text-white/55 text-sm leading-relaxed max-w-2xl">
           Your deposit is always safe. Each shield puts the daily profit it earns
           to work on an asset, so you can chase a bigger win without ever risking
           the money you put in.
@@ -165,7 +167,7 @@ export default function ShieldsPage() {
       </div>
 
       {/* Shield list */}
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 flex flex-col gap-3 pt-4">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 grid gap-3 lg:grid-cols-2 lg:items-start pt-4">
         {shieldEntries.map(([key, shield]) => {
           const isExpanded = expandedKey === key;
           const isActivating = activatingKey === key;
@@ -278,7 +280,7 @@ export default function ShieldsPage() {
         })}
 
         {/* Coming Soon card */}
-        <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.02] p-4 opacity-70">
+        <div className="lg:col-span-2 rounded-2xl border border-dashed border-white/12 bg-white/[0.02] p-4 opacity-70">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0">
               <Lock size={22} className="text-white/35" strokeWidth={1.5} />

@@ -208,8 +208,8 @@ export default function BadgesPage() {
   return (
     <div className="min-h-dvh bg-black text-white tracking-[-0.02em]" style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-black/85 backdrop-blur-md border-b border-white/[0.07] px-4 sm:px-6 pt-10 lg:pt-6 pb-5">
-        <div className="max-w-3xl mx-auto">
+      <div className="sticky top-0 z-20 bg-black/85 backdrop-blur-md border-b border-white/[0.07] px-4 sm:px-6 lg:px-10 pt-10 lg:pt-6 pb-5">
+        <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3">
             <h1 className="font-playfair italic text-3xl text-white">Your badges</h1>
             {totalBadges > 0 && (
@@ -227,7 +227,7 @@ export default function BadgesPage() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-28">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 pb-28">
         {/* Stats row */}
         {totalBadges > 0 && (
           <motion.div
@@ -255,7 +255,7 @@ export default function BadgesPage() {
 
         {/* Loading skeleton */}
         {loading && (
-          <div className="grid grid-cols-2 gap-4 mt-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.03] animate-pulse min-h-[180px]" />
             ))}
@@ -294,7 +294,7 @@ export default function BadgesPage() {
               {totalBadges > 0 && (
                 <div className="mt-5">
                   <p className="text-[10px] text-white/40 uppercase tracking-widest mb-3 font-medium">Earned</p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {badges.map((badge, i) =>
                       badge.closeTimestamp === 0 ? (
                         <OpenerBadgeCard key={badge.id} badge={badge} index={i} userAddr={user?.addr} />
@@ -311,7 +311,7 @@ export default function BadgesPage() {
                   <p className="text-[10px] text-white/30 uppercase tracking-widest mb-3 font-medium">
                     {totalBadges === 0 ? "Your collection" : "Locked"}
                   </p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {Array.from({ length: lockedPlaceholderCount }).map((_, i) => (
                       <LockedBadgePlaceholder key={i} index={i} />
                     ))}

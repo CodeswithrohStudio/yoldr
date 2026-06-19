@@ -61,6 +61,18 @@ export function assetVisual(asset: string): AssetVisual {
   );
 }
 
+// ── Vault pet icons (tasteful game-icons, tinted to the brand) ─────────────────
+export const PET_ICON: Record<string, string> = {
+  Griffin: "game-icons:griffin-symbol",
+  Dragon: "game-icons:dragon-head",
+  Phoenix: "game-icons:dove",
+  Narwhal: "game-icons:dolphin",
+};
+
+export function petIcon(petType: string): string {
+  return PET_ICON[petType] ?? "game-icons:griffin-symbol";
+}
+
 // ── Deterministic gradient avatar from a wallet address ────────────────────────
 // Replaces the pet emojis with a clean, unique identicon-style gradient.
 const AVATAR_PAIRS: [string, string][] = [
