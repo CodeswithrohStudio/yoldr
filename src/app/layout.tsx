@@ -26,6 +26,8 @@ export const metadata: Metadata = {
   // ── Favicon / icons ──────────────────────────────────────────────────────
   icons: {
     icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
       { url: "/favicon-16.png", sizes: "16x16",  type: "image/png" },
       { url: "/favicon.png",    sizes: "32x32",  type: "image/png" },
       { url: "/icon.png",       sizes: "512x512", type: "image/png" },
@@ -33,7 +35,7 @@ export const metadata: Metadata = {
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
-    shortcut: "/favicon.png",
+    shortcut: "/favicon.ico",
   },
 
   // ── Open Graph (WhatsApp, Discord, Facebook, LinkedIn) ───────────────────
@@ -85,7 +87,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#0F172A",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({

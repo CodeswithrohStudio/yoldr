@@ -164,28 +164,14 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between p-4 sm:p-5">
         {/* Left - logo + wordmark */}
         <div className="flex items-center gap-2.5">
-          <svg
-            width="26"
-            height="26"
-            viewBox="0 0 256 256"
-            fill="none"
-            aria-hidden
-          >
+          <svg width="26" height="26" viewBox="0 0 56 56" fill="none" aria-hidden>
+            {/* Shield: the principal, always protected, always home */}
             <path
-              d="M128 24l86 44v60c0 54-37 92-86 104-49-12-86-50-86-104V68l86-44z"
-              fill="none"
-              stroke="#ffffff"
-              strokeWidth="14"
-              strokeLinejoin="round"
+              d="M28,6 L42,12 C44.2,12.9 46,14.8 46,17.2 L46,26 C46,38.5 38,47.5 28,52 C18,47.5 10,38.5 10,26 L10,17.2 C10,14.8 11.8,12.9 14,12 Z"
+              fill="#ffffff"
             />
-            <path
-              d="M92 96l36 40 36-40M128 136v44"
-              fill="none"
-              stroke={ACCENT}
-              strokeWidth="14"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+            {/* Yield: a single dot escaping the shield's corner, out adventuring */}
+            <circle cx="44" cy="10" r="5" fill={ACCENT} />
           </svg>
           <span className="text-white text-2xl font-playfair italic">
             Yoldr

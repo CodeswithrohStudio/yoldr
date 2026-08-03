@@ -30,8 +30,15 @@ export default function AppSidebar() {
       className="hidden lg:flex fixed left-0 top-0 z-40 h-screen w-64 flex-col border-r border-white/[0.07] bg-black px-4 py-6"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
-      {/* Wordmark */}
-      <button onClick={() => router.push("/app")} className="px-2 mb-8 text-left cursor-pointer">
+      {/* Mark + wordmark */}
+      <button onClick={() => router.push("/app")} className="flex items-center gap-2 px-2 mb-8 text-left cursor-pointer">
+        <svg width="22" height="22" viewBox="0 0 56 56" fill="none" aria-hidden>
+          <path
+            d="M28,6 L42,12 C44.2,12.9 46,14.8 46,17.2 L46,26 C46,38.5 38,47.5 28,52 C18,47.5 10,38.5 10,26 L10,17.2 C10,14.8 11.8,12.9 14,12 Z"
+            fill="#ffffff"
+          />
+          <circle cx="44" cy="10" r="5" fill={ACCENT} />
+        </svg>
         <span className="font-playfair italic text-2xl text-white">Yoldr</span>
       </button>
 
