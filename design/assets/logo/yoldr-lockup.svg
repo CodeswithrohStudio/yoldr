@@ -1,13 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" fill="none" aria-hidden="true">
-  <!-- Mark: shield (principal, always home) + escaping dot (yield, adventuring) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 56" fill="none" aria-hidden="true">
+  <!-- Mark: vault (principal, whole, stays home) + a comet already departed (yield, adventuring) -->
+  <circle cx="21" cy="34" r="15.5" fill="#ffffff" />
   <path
-    d="M28,6 L42,12 C44.2,12.9 46,14.8 46,17.2 L46,26 C46,38.5 38,47.5 28,52 C18,47.5 10,38.5 10,26 L10,17.2 C10,14.8 11.8,12.9 14,12 Z"
-    fill="#ffffff"
+    d="M37,21 Q40,16.5 42.5,13.5 L44.5,15 Q41,19 37,21 Z"
+    fill="#e8702a"
   />
-  <circle cx="44" cy="10" r="5" fill="#e8702a" />
+  <circle cx="47" cy="9" r="6" fill="#e8702a" />
   <!-- Wordmark: Playfair Display italic, matching every other "Yoldr" instance in the app -->
   <text
-    x="64" y="40"
+    x="66" y="40"
     font-family="'Playfair Display', serif"
     font-style="italic"
     font-weight="400"

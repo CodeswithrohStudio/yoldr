@@ -33,11 +33,11 @@ export default function AppSidebar() {
       {/* Mark + wordmark */}
       <button onClick={() => router.push("/app")} className="flex items-center gap-2 px-2 mb-8 text-left cursor-pointer">
         <svg width="22" height="22" viewBox="0 0 56 56" fill="none" aria-hidden>
-          <path
-            d="M28,6 L42,12 C44.2,12.9 46,14.8 46,17.2 L46,26 C46,38.5 38,47.5 28,52 C18,47.5 10,38.5 10,26 L10,17.2 C10,14.8 11.8,12.9 14,12 Z"
-            fill="#ffffff"
-          />
-          <circle cx="44" cy="10" r="5" fill={ACCENT} />
+          {/* Vault: the principal, whole and anchored, stays home */}
+          <circle cx="21" cy="34" r="15.5" fill="#ffffff" />
+          {/* Yield: a comet already departed, sweeping off as it ascends */}
+          <path d="M37,21 Q40,16.5 42.5,13.5 L44.5,15 Q41,19 37,21 Z" fill={ACCENT} />
+          <circle cx="47" cy="9" r="6" fill={ACCENT} />
         </svg>
         <span className="font-playfair italic text-2xl text-white">Yoldr</span>
       </button>
